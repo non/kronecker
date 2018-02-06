@@ -7,7 +7,7 @@
 
   -- Leopold Kronecker
 
-(God made the integers, all else is the work of man.)
+(God made the integers, everything else is human work.)
 ```
 
 ### Overview
