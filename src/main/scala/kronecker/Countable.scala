@@ -6,22 +6,101 @@ import java.lang.Double.longBitsToDouble
 import java.lang.Float.intBitsToFloat
 import shapeless._
 
-trait Countable[A] {
+/**
+ * Countable[A] represents an ordering of every possible A value.
+ *
+ * Particular values can be accessed by their index in this ordering.
+ * Thus, get(0) returns the "first" A value, get(1) returns the
+ * second, and so on.
+ *
+ * The values of type A might be a finite site, or an infinite set
+ * (i.e. an unbounded set). In the latter case, this class must
+ * diagonize the values so that every particular value has an index.
+ *
+ * It's possible to define "invalid" instances of Countable which
+ * "miss" particular A values (and doesn't give a particular value
+ * multiple indices). We have no way of verifying that an instance is
+ * "valid" although the instances provided are believed to be valid.
+ *
+ * There are two types of Countable instances:
+ *
+ *   - Finite: contains a fixed set of values
+ *   - Infinite: contains an unbounded set of values
+ *
+ * Only one instance or the other should be defined for any given type
+ * (either a type is Finite, or Infinite, but not both).
+ */
+trait Countable[A] { self =>
+
+  /**
+   * Return the "size" of the set of all A values.
+   */
   def cardinality: Card
+
+  /**
+   * Return the A value at the given index (if any).
+   */
   def get(index: Z): Option[A]
+
+  /**
+   * Iterator over all A values.
+   *
+   * This iterator is mutable -- you should create a new iterator
+   * every time you wish to step through all A values.
+   */
+  def iterator(): Iterator[A] =
+    Iterator.from(0).map(self.get(_)).takeWhile(_.isDefined).map(_.get)
+
+  /**
+   * Lazy stream of all A values.
+   *
+   * Be careful! Scala memoizes streams, so if you hang onto the head
+   * of this stream you could end up using a lot of memory.
+   */
+  def stream: Stream[A] =
+    Stream.from(0).map(self.get(_)).takeWhile(_.isDefined).map(_.get)
+
+  /**
+   * Produce a new Countable[B] instance by translating this one using
+   * the given function `f`.
+   *
+   * This function is not called `map` since in order to produce
+   * "valid" Countable[B] values, the function `f` must be a
+   * bijection. We have no way of verifying this, so the name
+   * `translate` is used to hint that something unusual is going on.
+   */
+  def translate[B](f: A => B): Countable[B]
 }
 
-trait Finite[A] extends Countable[A] {
+/**
+ * Countable[A] for finite sets of A values.
+ */
+trait Finite[A] extends Countable[A] { self =>
   def size: Z
 
   final def cardinality: Card = Card.Finite(size)
+
+  def translate[B](f: A => B): Finite[B] =
+    new Finite[B] {
+      def size: Z = self.size
+      def get(index: Z): Option[B] = self.get(index).map(f)
+    }
 }
 
-trait Infinite[A] extends Countable[A] {
+/**
+ * Countable[A] for infinite (unbounded) sets of A values.
+ */
+trait Infinite[A] extends Countable[A] { self =>
   def apply(index: Z): A
 
   final def cardinality: Card = Card.Infinite
+
   final def get(index: Z): Some[A] = Some(apply(index))
+
+  def translate[B](f: A => B): Infinite[B] =
+    new Infinite[B] {
+      def apply(index: Z): B = f(self(index))
+    }
 }
 
 object Countable {
@@ -50,6 +129,10 @@ object Countable {
   // 0, 1, 2, ..., 65535, -65536, -65535, ..., -1.
   implicit val cshort: Finite[Short] =
     Integers(Z.one << 16, _.toShort)
+
+  // 0, 1, 2, ..., 65535, -65536, -65535, ..., -1.
+  implicit val cchar: Finite[Char] =
+    Integers(Z.one << 16, _.toChar)
 
   // 0, 1, 2, ... -1.
   implicit val cint: Finite[Int] =
@@ -101,13 +184,16 @@ object Countable {
       }
     }
 
+  implicit def lexicographicVector[A](implicit ev: Finite[A]): Infinite[Vector[A]] =
+    lexicographicList(ev).translate(_.toVector)
+
+  // quite ugly
+  implicit val cstring: Infinite[String] =
+    lexicographicList[Char].translate(_.mkString)
+
   // support case classes and tuples via generic derivation.
-  implicit def cgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HInfinite[H]): Infinite[A] =
-    new Infinite[A] {
-      val size = evh.size
-      def apply(index: Z): A =
-        gen.from(evh.translate(Diagonal.atIndex(size, index)))
-    }
+  implicit def cgeneric[A, T, H <: HList](implicit gen: Generic.Aux[A, T :: H], evh: HInfinite[T :: H]): Infinite[A] =
+    chlist(evh).translate(gen.from)
 
   // we define this in terms of (H :: T) because Infinite[HNil] is
   // impossible.
@@ -115,7 +201,7 @@ object Countable {
     new Infinite[H :: T] {
       val size = evh.size
       def apply(index: Z): H :: T =
-        evh.translate(Diagonal.atIndex(size, index))
+        evh.lookup(Diagonal.atIndex(size, index))
     }
 
   // helpful class for defining finite instances derived from integer ranges.
@@ -131,14 +217,14 @@ object Countable {
   // Infinite[A1], Infinite[A2], ... Infinite[An].
   trait HInfinite[H <: HList] {
     def size: Int
-    def translate(elem: List[Z]): H
+    def lookup(elem: List[Z]): H
   }
 
   object HInfinite{
 
     implicit object HINil extends HInfinite[HNil] {
       def size: Int = 0
-      def translate(elem: List[Z]): HNil = {
+      def lookup(elem: List[Z]): HNil = {
         require(elem.isEmpty, elem.toString)
         HNil
       }
@@ -147,8 +233,8 @@ object Countable {
     implicit def hicons[A, H <: HList](implicit eva: Infinite[A], evh: HInfinite[H]): HInfinite[A :: H] =
       new HInfinite[A :: H] {
         def size: Int = evh.size + 1
-        def translate(elem: List[Z]): A :: H =
-          eva(elem.head) :: evh.translate(elem.tail)
+        def lookup(elem: List[Z]): A :: H =
+          eva(elem.head) :: evh.lookup(elem.tail)
       }
   }
 }
