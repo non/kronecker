@@ -192,15 +192,14 @@ object Countable {
     lexicographicList[Char].translate(_.mkString)
 
   // support case classes and tuples via generic derivation.
-  implicit def cgeneric[A, T, H <: HList](implicit gen: Generic.Aux[A, T :: H], evh: HInfinite[T :: H]): Infinite[A] =
+  implicit def cgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HInfinite[H]): Infinite[A] =
     chlist(evh).translate(gen.from)
 
-  // we define this in terms of (H :: T) because Infinite[HNil] is
-  // impossible.
-  implicit def chlist[H, T <: HList](implicit evh: HInfinite[H :: T]): Infinite[H :: T] =
-    new Infinite[H :: T] {
+  // suport Hlists
+  implicit def chlist[H <: HList](implicit evh: HInfinite[H]): Infinite[H] =
+    new Infinite[H] {
       val size = evh.size
-      def apply(index: Z): H :: T =
+      def apply(index: Z): H =
         evh.lookup(Diagonal.atIndex(size, index))
     }
 
