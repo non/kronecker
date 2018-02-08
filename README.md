@@ -61,6 +61,11 @@ val j = Z(20).pow(32)
 c1.get(j) // Some((25689,-10621,1664,-1809,-14874,22207,-1114,9471,172))
 ```
 
+After the JVM is warm, the above examples run in near-instant time on
+the author's machine. However it's not hard to increment the exponents
+used until the library takes "too long" to return (for example,
+`c1.get(i)` takes longer than you'll care to wait).
+
 ### Copyright and License
 
 All code is available to you under the Apache 2 license, available at
