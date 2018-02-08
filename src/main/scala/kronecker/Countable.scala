@@ -4,6 +4,7 @@ import scala.annotation.tailrec
 
 import java.lang.Double.longBitsToDouble
 import java.lang.Float.intBitsToFloat
+import shapeless._
 
 trait Countable[A] {
   def cardinality: Card
@@ -77,6 +78,10 @@ object Countable {
       }
     }
 
+  // this only works if the A type is finite. A types that are
+  // infinite require a different strategy than the lexicographic
+  // order (since you can never "finish" the length=1 lists you have
+  // to interleave larger ones).
   implicit def lexicographicList[A](implicit ev: Finite[A]): Infinite[List[A]] =
     new Infinite[List[A]] {
       def apply(index: Z): List[A] = {
@@ -96,26 +101,54 @@ object Countable {
       }
     }
 
-  implicit def tuple2[A, B](implicit eva: Infinite[A], evb: Infinite[B]): Infinite[(A, B)] =
-    new Infinite[(A, B)] {
-      def apply(index: Z): (A, B) = {
-        val List(x, y) = Diagonal.atIndex(2, index)
-        (eva(x), evb(y))
-      }
+  // support case classes and tuples via generic derivation.
+  implicit def cgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HInfinite[H]): Infinite[A] =
+    new Infinite[A] {
+      val size = evh.size
+      def apply(index: Z): A =
+        gen.from(evh.translate(Diagonal.atIndex(size, index)))
     }
 
-  implicit def tuple3[A, B, C](implicit eva: Infinite[A], evb: Infinite[B], evc: Infinite[C]): Infinite[(A, B, C)] =
-    new Infinite[(A, B, C)] {
-      def apply(index: Z): (A, B, C) = {
-        val List(x, y, z) = Diagonal.atIndex(3, index)
-        (eva(x), evb(y), evc(z))
-      }
+  // we define this in terms of (H :: T) because Infinite[HNil] is
+  // impossible.
+  implicit def chlist[H, T <: HList](implicit evh: HInfinite[H :: T]): Infinite[H :: T] =
+    new Infinite[H :: T] {
+      val size = evh.size
+      def apply(index: Z): H :: T =
+        evh.translate(Diagonal.atIndex(size, index))
     }
 
+  // helpful class for defining finite instances derived from integer ranges.
   case class Integers[A](size: Z, f: Z => A) extends Finite[A] {
     def get(index: Z): Option[A] =
       if (index >= size) None
       else if (index >= 0) Some(f(index))
       else sys.error("!")
+  }
+
+  // type class that witnesses to having a bunch of infinite
+  // instances. for a type (A1 :: A2 :: ... An :: HNil) we'll have
+  // Infinite[A1], Infinite[A2], ... Infinite[An].
+  trait HInfinite[H <: HList] {
+    def size: Int
+    def translate(elem: List[Z]): H
+  }
+
+  object HInfinite{
+
+    implicit object HINil extends HInfinite[HNil] {
+      def size: Int = 0
+      def translate(elem: List[Z]): HNil = {
+        require(elem.isEmpty, elem.toString)
+        HNil
+      }
+    }
+
+    implicit def hicons[A, H <: HList](implicit eva: Infinite[A], evh: HInfinite[H]): HInfinite[A :: H] =
+      new HInfinite[A :: H] {
+        def size: Int = evh.size + 1
+        def translate(elem: List[Z]): A :: H =
+          eva(elem.head) :: evh.translate(elem.tail)
+      }
   }
 }

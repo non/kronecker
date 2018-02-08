@@ -82,8 +82,18 @@ object Diagonal {
    * ...
    */
   def widthAtDepth(dim: Int, depth: Z): Z = {
-    @tailrec def loop(i: Int, term: Z, num: Z, denom: Z): Z =
-      if (i <= 0) num / denom
+    val Info(_, num, denom) = infoAtDepth(dim, depth)
+    num / denom
+  }
+
+  case class Info(nextTerm: Z, num: Z, denom: Z)
+
+  /**
+   *
+   */
+  def infoAtDepth(dim: Int, depth: Z): Info = {
+    @tailrec def loop(i: Int, term: Z, num: Z, denom: Z): Info =
+      if (i <= 1) Info(term, num, denom)
       else loop(i - 1, term + 1, (depth + term) * num, denom * term)
     loop(dim, Z.one, Z.one, Z.one)
   }
@@ -127,14 +137,36 @@ object Diagonal {
     }
 
   /**
-   * Decompose an index into a depth and position.
+   * Decompose an index into a position and depth.
    */
-  def decompose(dim: Int, index: Z): (Z, Z) = {
-    @tailrec def loop(curr: Z, dp: Z): (Z, Z) = {
-      val w = widthAtDepth(dim - 1, dp)
-      val next = curr - w
-      if (next >= 0) loop(next, dp + 1) else (curr, dp)
+  def decompose(dim: Int, index: Z): (Z, Z) =
+    if (dim == 1) {
+      (Z.zero, index)
+    } else if (dim == 2) {
+      var i = index
+      var depth = Z.zero
+      var num = Z.one
+      while (i >= num) {
+        i -= num
+        depth += 1
+        num += 1
+      }
+      (i, depth)
+    } else {
+      val info = infoAtDepth(dim, 0)
+      var i = index * info.denom
+      var depth = Z.zero
+      var num = info.num
+      var oldestTerm = Z.one
+      var nextTerm = info.nextTerm
+      while (i >= num) {
+        i -= num
+        depth += 1
+        num = (num * nextTerm) / oldestTerm
+        oldestTerm += 1
+        nextTerm += 1
+      }
+
+      (i / info.denom, depth)
     }
-    loop(index, Z.zero)
-  }
 }
