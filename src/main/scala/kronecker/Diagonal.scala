@@ -75,29 +75,31 @@ object Diagonal {
    * Determine how many elements of dimension `dim` exist at a given
    * tree `depth`.
    *
-   * widthAtDepth(0, d) = 1
-   * widthAtDepth(1, d) = d + 1
-   * widthAtDepth(2, d) = ((d+1) * (d+2)) / 2
-   * widthAtDepth(3, d) = ((d+1) * (d+2) * (d+3)) / 6
+   * widthAtDepth(1, d) = 1
+   * widthAtDepth(2, d) = d + 1
+   * widthAtDepth(3, d) = ((d+1) * (d+2)) / 2
+   * widthAtDepth(4, d) = ((d+1) * (d+2) * (d+3)) / 6
    * ...
+   *
+   * The sequences of these values are:
+   *
+   * dim=1: 1 1  1  1  1  1  1   1   1
+   * dim=2: 1 2  3  4  5  6  7   8   9
+   * dim=3: 1 3  6 10 15 21 28  36  45
+   * dim=4: 1 4 10 16 31 52 80 116 161
+   * ...
+   *
+   * Notice that the kth value at dimenion d is equal to the sum of
+   * the (0 to kth) values at dimension (d-1).
    */
   def widthAtDepth(dim: Int, depth: Z): Z = {
-    val Info(_, num, denom) = infoAtDepth(dim, depth)
-    num / denom
-  }
-
-  case class Info(nextTerm: Z, num: Z, denom: Z)
-
-  /**
-   *
-   */
-  def infoAtDepth(dim: Int, depth: Z): Info = {
-    @tailrec def loop(i: Int, term: Z, num: Z, denom: Z): Info =
-      if (i <= 1) Info(term, num, denom)
+    @tailrec def loop(i: Int, term: Z, num: Z, denom: Z): Z =
+      if (i <= 1) num / denom
       else loop(i - 1, term + 1, (depth + term) * num, denom * term)
-    loop(dim, Z.one, Z.one, Z.one)
-  }
 
+    if (dim == 1) Z.one else loop(dim, Z.one, Z.one, Z.one)
+  }
+  
   /**
    * Find a dimension `dim` element at the given `index`.
    *
@@ -105,6 +107,7 @@ object Diagonal {
    * then delegates the actual work to the `atDepth` method.
    */
   def atIndex(dim: Int, index: Z): Elem = {
+    require(index >= 0)
     val (pos, depth) = decompose(dim, index)
     atDepth(dim, depth, pos)
   }
@@ -115,18 +118,7 @@ object Diagonal {
    *
    * Requirement: 0 <= pos < widthAtDepth(dim, depth)
    */
-  def atDepth(dim: Int, depth: Z, pos: Z): Elem = {
-    require(dim >= 1, s"($dim >= 1) was false")
-    require(depth >= 0, s"($depth >= 0) was false")
-    val w = widthAtDepth(dim, depth)
-    require(0 <= pos && pos < w, s"(0 <= $pos && $pos < $w) was false")
-    atDepth0(dim, depth, pos)
-  }
-
-  /**
-   * Same as atDepth but without the input validation.
-   */
-  def atDepth0(dim: Int, depth: Z, pos: Z): Elem =
+  def atDepth(dim: Int, depth: Z, pos: Z): Elem =
     dim match {
       case 1 =>
         depth :: Nil
@@ -137,36 +129,48 @@ object Diagonal {
     }
 
   /**
+   * Find the largest integer where the given property holds.
+   *
+   * This method does a binary search up the powers of 2 to find an
+   * upper bound (an integer where the property fails), and then works
+   * its way back through the remaining bits to figure out the largest
+   * value where the property is still true.
+   *
+   * The code here based on code from Spire.
+   */
+  def search(f: Z => Boolean): Z = {
+
+    // this .get() will not cause a crash: it would only fail if the
+    // property is true for all powers of two < (1 << Int.MaxValue),
+    // which is much larger than we can handle.
+    //
+    // in that case we'd very likely hang in the find() call.
+    val ceil = Iterator.from(0).find(i => !f(Z.one << i)).get
+    if (ceil == 0) 0 else {
+      (Z.zero /: ((ceil - 1) to 0 by -1)) { (x, i) =>
+        val y = x | (Z.one << i)
+        if (f(y)) y else x
+      }
+    }
+  }
+
+  /**
    * Decompose an index into a position and depth.
    */
   def decompose(dim: Int, index: Z): (Z, Z) =
     if (dim == 1) {
       (Z.zero, index)
-    } else if (dim == 2) {
-      var i = index
-      var depth = Z.zero
-      var num = Z.one
-      while (i >= num) {
-        i -= num
-        depth += 1
-        num += 1
-      }
-      (i, depth)
     } else {
-      val info = infoAtDepth(dim, 0)
-      var i = index * info.denom
-      var depth = Z.zero
-      var num = info.num
-      var oldestTerm = Z.one
-      var nextTerm = info.nextTerm
-      while (i >= num) {
-        i -= num
-        depth += 1
-        num = (num * nextTerm) / oldestTerm
-        oldestTerm += 1
-        nextTerm += 1
-      }
 
-      (i / info.denom, depth)
+      // it turns out that widthAtDepth(dim+1, d) equals:
+      //   (0 to d).map(i => widthAtDepth(dim, i)).sum
+      //
+      // we want to calculate:
+      //   (0 to (d-1)).map(i => widthAtDepth(dim, i)).sum
+      //
+      // so we use: widthAtDepth(dim+1, d-1)
+
+      val k = search(n => widthAtDepth(dim + 1, n - 1) <= index)
+      (index - widthAtDepth(dim + 1, k - 1), k)
     }
 }
