@@ -73,7 +73,7 @@ The laws for `ev: Finite[A]` are as follows:
  * `ev.size >= 0`
  * `ev.get(i)` returns `Some(_)` for all `i` in `[0, ev.size)`
  * `ev.get(i)` returns `None` for all `i >= ev.size`
- * `ev.get(i) = ev.get(j)` if and only if `i == j`
+ * `ev.get(i) = Some(_) = ev.get(j)` if and only if `i == j`
  * for every `a: A` there is an `i` such that `ev.get(i) = Some(a)`
  * `ev.cardinality = Card(ev.size)`
 
@@ -89,7 +89,7 @@ Every `Countable[A]` is either `Finite[A]` or `Infinite[A]`, so the
 
  * `ev.get(i)` returns `Some(_)` for all `i < ev.cardinality`
  * `ev.get(i)` returns `None` for all `i >= ev.cardinality`
- * `ev.get(i) = ev.get(j)` if and only if `i == j`
+ * `ev.get(i) = Some(_) = ev.get(j)` if and only if `i == j`
  * for every `a: A` there is an `i` such that `ev.get(i) = Some(a)`
  
 In all these laws `i` is assumed to be a non-negative, unbounded
