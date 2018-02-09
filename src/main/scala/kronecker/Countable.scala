@@ -192,15 +192,34 @@ object Countable {
     lexicographicList[Char].translate(_.mkString)
 
   // support case classes and tuples via generic derivation.
-  implicit def cgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HInfinite[H]): Infinite[A] =
-    chlist(evh).translate(gen.from)
+  implicit def fgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HFinite[H]): Finite[A] =
+    fhlist(evh).translate(gen.from)
 
   // suport Hlists
-  implicit def chlist[H <: HList](implicit evh: HInfinite[H]): Infinite[H] =
+  implicit def fhlist[H <: HList](implicit evh: HFinite[H]): Finite[H] =
+    new Finite[H] {
+      def size = evh.size
+      def get(index: Z): Option[H] = evh.get(index)
+    }
+
+  implicit def mgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HMixed[H]): Infinite[A] =
+    mhlist(evh).translate(gen.from)
+
+  implicit def mhlist[H <: HList](implicit evh: HMixed[H]): Infinite[H] =
     new Infinite[H] {
-      val size = evh.size
+      def apply(index: Z): H = evh.build(index)
+    }
+
+  // support case classes and tuples via generic derivation.
+  implicit def igeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HInfinite[H]): Infinite[A] =
+    ihlist(evh).translate(gen.from)
+
+  // suport Hlists
+  implicit def ihlist[H <: HList](implicit evh: HInfinite[H]): Infinite[H] =
+    new Infinite[H] {
+      val arity = evh.arity
       def apply(index: Z): H =
-        evh.lookup(Diagonal.atIndex(size, index))
+        evh.lookup(Diagonal.atIndex(arity, index))
     }
 
   // helpful class for defining finite instances derived from integer ranges.
@@ -211,29 +230,4 @@ object Countable {
       else sys.error("!")
   }
 
-  // type class that witnesses to having a bunch of infinite
-  // instances. for a type (A1 :: A2 :: ... An :: HNil) we'll have
-  // Infinite[A1], Infinite[A2], ... Infinite[An].
-  trait HInfinite[H <: HList] {
-    def size: Int
-    def lookup(elem: List[Z]): H
-  }
-
-  object HInfinite{
-
-    implicit object HINil extends HInfinite[HNil] {
-      def size: Int = 0
-      def lookup(elem: List[Z]): HNil = {
-        require(elem.isEmpty, elem.toString)
-        HNil
-      }
-    }
-
-    implicit def hicons[A, H <: HList](implicit eva: Infinite[A], evh: HInfinite[H]): HInfinite[A :: H] =
-      new HInfinite[A :: H] {
-        def size: Int = evh.size + 1
-        def lookup(elem: List[Z]): A :: H =
-          eva(elem.head) :: evh.lookup(elem.tail)
-      }
-  }
 }
