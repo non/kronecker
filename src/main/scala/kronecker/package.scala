@@ -14,9 +14,9 @@ package object kronecker {
   def floor(x: R): Z = x.toRational.toSafeLong
 
   def powOf(base: Z, exponent: Z): Z =
-    if (exponent.isZero) Z.one
-    else if (base.isZero) Z.zero
-    else if (base.isOne) Z.one
+    if      (exponent.isZero)     Z.one
+    else if (base.isZero)         Z.zero
+    else if (base.isOne)          Z.one
     else if (exponent.isValidInt) base.pow(exponent.toInt)
     else sys.error(s"$base^$exponent is too large")
 }

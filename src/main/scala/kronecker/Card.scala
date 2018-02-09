@@ -1,5 +1,7 @@
 package kronecker
 
+import spire.algebra.{Order, Rig}
+
 sealed trait Card { lhs =>
 
   import Card._
@@ -71,4 +73,14 @@ object Card {
   case object Zero extends Card
   case object Infinite extends Card
   case class Finite private (size: Z) extends Card
+
+  val One = Finite(Z.one)
+
+  implicit object CardAlgebra extends Order[Card] with Rig[Card] {
+    def compare(x: Card, y: Card): Int = x compare y
+    def zero: Card = Zero
+    def one: Card = One
+    def plus(x: Card, y: Card): Card = x + y
+    def times(x: Card, y: Card): Card = x * y
+  }
 }
