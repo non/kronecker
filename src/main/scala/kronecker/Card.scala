@@ -21,6 +21,14 @@ sealed trait Card { lhs =>
       case (Finite(x), Finite(y)) => x compare y
     }
 
+  def contains(i: Z): Boolean =
+    if (i < 0) false
+    else this match {
+      case Infinite => true
+      case Zero => false
+      case Finite(n) => i < n
+    }
+
   def <(rhs: Card): Boolean = (lhs compare rhs) < 0
   def <=(rhs: Card): Boolean = (lhs compare rhs) <= 0
   def >(rhs: Card): Boolean = (lhs compare rhs) > 0

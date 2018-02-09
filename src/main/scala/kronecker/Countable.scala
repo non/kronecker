@@ -103,7 +103,7 @@ trait Infinite[A] extends Countable[A] { self =>
     }
 }
 
-object Countable {
+object Countable extends Countable0 {
 
   def apply[A](implicit ev: Countable[A]): Countable[A] = ev
 
@@ -290,6 +290,16 @@ object Countable {
   implicit val cstring: Infinite[String] =
     lexicographicList[Char].translate(_.mkString)
 
+  // helpful class for defining finite instances derived from integer ranges.
+  case class Integers[A](size: Z, f: Z => A) extends Finite[A] {
+    def get(index: Z): Option[A] =
+      if (index >= size) None
+      else if (index >= 0) Some(f(index))
+      else sys.error("!")
+  }
+}
+
+abstract class Countable0 extends Countable1 {
   // support case classes and tuples via generic derivation.
   implicit def fgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HFinite[H]): Finite[A] =
     fhlist(evh).translate(gen.from)
@@ -299,14 +309,6 @@ object Countable {
     new Finite[H] {
       def size = evh.size
       def get(index: Z): Option[H] = evh.get(index)
-    }
-
-  implicit def mgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HMixed[H]): Infinite[A] =
-    mhlist(evh).translate(gen.from)
-
-  implicit def mhlist[H <: HList](implicit evh: HMixed[H]): Infinite[H] =
-    new Infinite[H] {
-      def apply(index: Z): H = evh.build(index)
     }
 
   // support case classes and tuples via generic derivation.
@@ -320,13 +322,14 @@ object Countable {
       def apply(index: Z): H =
         evh.lookup(Diagonal.atIndex(arity, index))
     }
+}
 
-  // helpful class for defining finite instances derived from integer ranges.
-  case class Integers[A](size: Z, f: Z => A) extends Finite[A] {
-    def get(index: Z): Option[A] =
-      if (index >= size) None
-      else if (index >= 0) Some(f(index))
-      else sys.error("!")
-  }
+abstract class Countable1 {
+  implicit def mgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HMixed[H]): Infinite[A] =
+    mhlist(evh).translate(gen.from)
 
+  implicit def mhlist[H <: HList](implicit evh: HMixed[H]): Infinite[H] =
+    new Infinite[H] {
+      def apply(index: Z): H = evh.build(index)
+    }
 }
