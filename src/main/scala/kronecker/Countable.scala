@@ -30,7 +30,7 @@ import shapeless._
  * Only one instance or the other should be defined for any given type
  * (either a type is Finite, or Infinite, but not both).
  */
-trait Countable[A] { self =>
+sealed trait Countable[A] { self =>
 
   /**
    * Return the "size" of the set of all A values.
@@ -158,6 +158,105 @@ object Countable {
         val (quot, mod) = (index + 1) /% Z.two
         val sign = Z.one - (mod * Z.two)
         sign * quot
+      }
+    }
+
+  // None, Some(0), Some(1), ...
+  implicit def foption[A](implicit ev: Finite[A]): Finite[Option[A]] =
+    new Finite[Option[A]] {
+      val size: Z = ev.size + 1
+      def get(index: Z): Option[Option[A]] =
+        if (index == 0) Some(None)
+        else ev.get(index - 1).map(Some(_))
+    }
+
+  // None, Some(0), Some(1), ...
+  implicit def ioption[A](implicit ev: Infinite[A]): Infinite[Option[A]] =
+    new Infinite[Option[A]] {
+      def apply(index: Z): Option[A] =
+        if (index == 0) None else Some(ev(index - 1))
+    }
+
+  // Left(0), Left(1), ..., Right(0), Right(1), ...
+  implicit def feither[A, B](implicit eva: Finite[A], evb: Finite[B]): Finite[Either[A, B]] =
+    new Finite[Either[A, B]] {
+      val size: Z = eva.size + evb.size
+      def get(index: Z): Option[Either[A, B]] =
+        if (index < eva.size) eva.get(index).map(Left(_))
+        else evb.get(index - eva.size).map(Right(_))
+    }
+
+  // Left(0), Left(1), ..., Right(0), Right(1), ...
+  implicit def fieither[A, B](implicit eva: Finite[A], evb: Infinite[B]): Infinite[Either[A, B]] =
+    new Infinite[Either[A, B]] {
+      def apply(index: Z): Either[A, B] =
+        if (index < eva.size) Left(eva.get(index).get)
+        else Right(evb(index - eva.size))
+    }
+
+  // Right(0), Right(1), ... Left(0), Left(1), ...
+  implicit def ifeither[A, B](implicit eva: Infinite[A], evb: Finite[B]): Infinite[Either[A, B]] =
+    fieither[B, A](evb, eva).translate {
+      case Left(b) => Right(b)
+      case Right(a) => Left(a)
+    }
+
+  // Left(0), Right(0), Left(1), Right(1), ...
+  implicit def ieither[A, B](implicit eva: Infinite[A], evb: Infinite[B]): Infinite[Either[A, B]] =
+    new Infinite[Either[A, B]] {
+      def apply(index: Z): Either[A, B] = {
+        val i = index >> 1
+        if (index.isEven) Left(eva(i)) else Right(evb(i))
+      }
+    }
+
+  val MaxExponent = Z(2).pow(65536)
+
+  // Set(), Set(0), Set(1), Set(0, 1), Set(2), Set(0, 2), Set(1, 2),
+  // Set(0, 1, 2), Set(3), ...
+  implicit def fset[A](implicit ev: Finite[A]): Finite[Set[A]] =
+    new Finite[Set[A]] {
+      val size: Z = {
+        // this sucks, but 2^(2^32) is not remotely workable.  it
+        // would be nice to be able to switch over to a
+        // pseudo-infinite Countable there, but i don't see an obvious
+        // way to do it in general.
+        //
+        // an unprincipled work-around if you need to make a bogus
+        // Infinite[Set[A]] from large Finite[A] is to do:
+        //
+        //     val fa = implicitly[Finite[A]]
+        //     iset(cz.translate(i => fa.get(i).get))
+        //
+        // as long as fa.size is large enough (e.g. >= 2^32) this is
+        // relatively safe.
+        require(ev.size <= MaxExponent, s"can't calculate 2^${ev.size}")
+        powOf(Z(2), ev.size)
+      }
+      def get(index: Z): Option[Set[A]] = {
+        @tailrec def loop(rem: Z, index: Z, s0: Set[A]): Set[A] =
+          if (rem.isZero || index >= ev.size) s0
+          else {
+            val s1 = if (rem.isOdd) s0 + ev.get(index).get else s0
+            loop(rem >> 1, index + 1, s1)
+          }
+        if (index >= size) None
+        else Some(loop(index, Z.zero, Set.empty))
+      }
+    }
+
+  // Set(), Set(0), Set(1), Set(0, 1), Set(2), Set(0, 2), Set(1, 2),
+  // Set(0, 1, 2), Set(3), ...
+  implicit def iset[A](implicit ev: Infinite[A]): Infinite[Set[A]] =
+    new Infinite[Set[A]] {
+      def apply(index: Z): Set[A] = {
+        @tailrec def loop(rem: Z, index: Z, s0: Set[A]): Set[A] =
+          if (rem.isZero) s0
+          else {
+            val s1 = if (rem.isOdd) s0 + ev(index) else s0
+            loop(rem >> 1, index + 1, s1)
+          }
+        loop(index, Z.zero, Set.empty)
       }
     }
 
