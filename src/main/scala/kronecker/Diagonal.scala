@@ -135,23 +135,24 @@ object Diagonal {
    * upper bound (an integer where the property fails), and then works
    * its way back through the remaining bits to figure out the largest
    * value where the property is still true.
-   *
-   * The code here based on code from Spire.
    */
-  def search(f: Z => Boolean): Z = {
+  def search(p: Z => Boolean): Z = {
 
-    // this .get() will not cause a crash: it would only fail if the
-    // property is true for all powers of two < (1 << Int.MaxValue),
-    // which is much larger than we can handle.
-    //
-    // in that case we'd very likely hang in the find() call.
-    val ceil = Iterator.from(0).find(i => !f(Z.one << i)).get
-    if (ceil == 0) 0 else {
-      (Z.zero /: ((ceil - 1) to 0 by -1)) { (x, i) =>
+    // search up to find the smallest power of 2 where p fails.
+    @tailrec def ascend(i: Int): Int =
+      if (p(Z.one << i)) ascend(i + 1) else i
+
+    // we know that p(1 << ceil) is, but that p(1 << (ceil - 1)) is
+    // true. so let's start adding bits back in (from highest to
+    // lowest) to construct the largest value where p is still true
+    @tailrec def descend(x: Z, i: Int): Z =
+      if (i < 0) x else {
         val y = x | (Z.one << i)
-        if (f(y)) y else x
+        descend(if (p(y)) y else x, i - 1)
       }
-    }
+
+    val ceil: Int = ascend(0)
+    if (ceil == 0) Z.zero else descend(Z.zero, ceil - 1)
   }
 
   /**
