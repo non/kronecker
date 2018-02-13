@@ -252,11 +252,64 @@ object Countable extends Countable0 {
       def apply(index: Z): Set[A] = {
         @tailrec def loop(rem: Z, index: Z, s0: Set[A]): Set[A] =
           if (rem.isZero) s0
-          else {
-            val s1 = if (rem.isOdd) s0 + ev(index) else s0
-            loop(rem >> 1, index + 1, s1)
-          }
+          else if (rem.isOdd) loop(rem >> 1, index + 1, s0 + ev(index))
+          else loop(rem >> 1, index + 1, s0)
         loop(index, Z.zero, Set.empty)
+      }
+    }
+
+  // this has a problem imap doesn't -- if we use its
+  // "short-circuiting" strategy then we'll end up with gaps in our
+  // sequence. if instead we always read a "value chunk" in addition
+  // to a "presence bit" for each possible key, we'll end up with
+  // duplicate values.
+  //
+  // this starts getting into pretty tricky territory, related to why
+  // counting functions is also hard.
+  implicit def fmap[K, V](implicit evk: Finite[K], evv: Finite[V]): Finite[Map[K, V]] =
+    new Finite[Map[K, V]] {
+      val size: Z = {
+        val kbits = evk.size.bitLength
+        val vbits = evv.size.bitLength
+        if (vbits == 0) Z.one
+        else {
+          val bits = kbits + (vbits - 1)
+          require(Z(bits) <= MaxExponent, s"can't calculate 2^$bits") // sigh...
+          powOf(evv.size + 1, evk.size)
+        }
+      }
+      def get(index: Z): Option[Map[K, V]] = {
+        @tailrec def loop(index0: Z, keyIndex: Z, m0: Map[K, V]): Map[K, V] =
+          if (index0.isZero || keyIndex >= evk.size) m0
+          else {
+            val index1 = index0 >> 1
+            val (index2, valIndex) = index1 /% evv.size
+            val m1 = if (index0.isEven) m0 else {
+              val k = evk.get(keyIndex).get
+              val v = evv.get(valIndex).get
+              m0.updated(k, v)
+            }
+            loop(index2, keyIndex + 1, m1)
+          }
+        if (index >= size) None
+        else Some(loop(index, Z.zero, Map.empty))
+      }
+    }
+
+  implicit def imap[K, V](implicit evk: Infinite[K], evv: Finite[V]): Infinite[Map[K, V]] =
+    new Infinite[Map[K, V]] {
+      def apply(index: Z): Map[K, V] = {
+        @tailrec def loop(index0: Z, keyIndex: Z, m0: Map[K, V]): Map[K, V] =
+          if (index0.isZero) m0
+          else if (index0.isEven) loop(index0 >> 1, keyIndex + 1, m0)
+          else {
+            val index1 = index0 >> 1
+            val (index2, valIndex) = index1 /% evv.size
+            val k = evk(keyIndex)
+            val v = evv.get(valIndex).get
+            loop(index2, keyIndex + 1, m0.updated(k, v))
+          }
+        loop(index, Z.zero, Map.empty)
       }
     }
 
