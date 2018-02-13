@@ -18,6 +18,9 @@ sealed trait Indexable[A] { self =>
 
 object Indexable {
 
+  def apply[A](implicit ev: Indexable[A]): Indexable[A] =
+    ev
+
   def instance[A](f: A => Z): Indexable[A] =
     new Indexable[A] {
       def index(a: A): Z = f(a)
@@ -40,21 +43,21 @@ object Indexable {
     instance(b => if (b) Z.one else Z.zero)
 
   implicit val ibyte: Indexable[Byte] =
-    iz.translate(n => Z(n & 0xff))
+    instance(n => Z(n & 0xff))
 
   implicit val ishort: Indexable[Short] =
-    iz.translate(n => Z(n & 0xffff))
+    instance(n => Z(n & 0xffff))
 
   implicit val ichar: Indexable[Char] =
-    iz.translate(c => Z(c))
+    instance(c => Z(c))
 
   implicit val iint: Indexable[Int] =
-    iz.translate(n => Z(n & 0xffffffffL))
+    instance(n => Z(n & 0xffffffffL))
 
   val BeyondLong = Z(1) << 64
 
   implicit val ilong: Indexable[Long] =
-    iz.translate(n => if (n < 0) BeyondLong + n else Z(n))
+    instance(n => if (n < 0) BeyondLong + n else Z(n))
 
   implicit val ibigint: Indexable[BigInt] =
     iz.translate(n => Z(n))
