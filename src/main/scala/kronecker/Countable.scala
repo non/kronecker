@@ -216,23 +216,8 @@ object Countable extends Countable0 {
   // Set(0, 1, 2), Set(3), ...
   implicit def fset[A](implicit ev: Finite[A]): Finite[Set[A]] =
     new Finite[Set[A]] {
-      val size: Z = {
-        // this sucks, but 2^(2^32) is not remotely workable.  it
-        // would be nice to be able to switch over to a
-        // pseudo-infinite Countable there, but i don't see an obvious
-        // way to do it in general.
-        //
-        // an unprincipled work-around if you need to make a bogus
-        // Infinite[Set[A]] from large Finite[A] is to do:
-        //
-        //     val fa = implicitly[Finite[A]]
-        //     iset(cz.translate(i => fa.get(i).get))
-        //
-        // as long as fa.size is large enough (e.g. >= 2^32) this is
-        // relatively safe.
-        require(ev.size <= MaxExponent, s"can't calculate 2^${ev.size}")
-        powOf(Z(2), ev.size)
-      }
+      // NOTE: powOf() will crash for unsupportedly-large cardinalities
+      val size: Z = powOf(Z(2), ev.size)
       def get(index: Z): Option[Set[A]] = {
         @tailrec def loop(rem: Z, index: Z, s0: Set[A]): Set[A] =
           if (rem.isZero || index >= ev.size) s0
@@ -261,16 +246,8 @@ object Countable extends Countable0 {
   implicit def fmap[K, V](implicit evk: Finite[K], evv: Finite[V]): Finite[Map[K, V]] =
     new Finite[Map[K, V]] {
       val evo: Finite[Option[V]] = foption(evv)
-      val size: Z = {
-        val kbits = evk.size.bitLength
-        val vbits = evo.size.bitLength
-        if (evo.size == 1) Z.one
-        else {
-          val bits = kbits + (vbits - 1)
-          require(Z(bits) <= MaxExponent, s"can't calculate 2^$bits") // sigh...
-            powOf(evo.size, evk.size)
-        }
-      }
+      // NOTE: powOf() will crash for unsupportedly-large cardinalities
+      val size: Z = powOf(evo.size, evk.size)
       def get(index: Z): Option[Map[K, V]] = {
         @tailrec def loop(index0: Z, keyIndex: Z, m0: Map[K, V]): Map[K, V] =
           if (index0.isZero || keyIndex >= evk.size) m0
@@ -306,6 +283,26 @@ object Countable extends Countable0 {
             }
           }
         loop(index, Z.zero, Map.empty)
+      }
+    }
+
+  implicit def ffunction[A, B](implicit ca: Finite[A], ia: Indexable[A], cb: Finite[B]): Finite[A => B] =
+    new Finite[A => B] {
+      // NOTE: powOf() will crash for unsupportedly-large cardinalities
+      val size: Z = powOf(cb.size, ca.size)
+      def get(index: Z): Option[A => B] =
+        if (index >= size) None
+        else {
+          val f = Functional.function1(index, cb.size)
+          Some((a: A) => cb.get(f(ia.index(a))).get)
+        }
+    }
+
+  implicit def ifunction[A, B](implicit ca: Infinite[A], ia: Indexable[A], cb: Finite[B]): Infinite[A => B] =
+    new Infinite[A => B] {
+      def apply(index: Z): A => B = {
+        val f = Functional.function1(index, cb.size)
+        (a: A) => cb.get(f(ia.index(a))).get
       }
     }
 
