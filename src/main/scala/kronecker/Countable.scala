@@ -266,7 +266,7 @@ object Countable extends Countable0 {
       }
     }
 
-  implicit def imap[K, V](implicit evk: Infinite[K], evv: Finite[V]): Infinite[Map[K, V]] =
+  implicit def ifmap[K, V](implicit evk: Infinite[K], evv: Finite[V]): Infinite[Map[K, V]] =
     new Infinite[Map[K, V]] {
       val evo: Finite[Option[V]] = foption(evv)
       def apply(index: Z): Map[K, V] = {
@@ -283,6 +283,24 @@ object Countable extends Countable0 {
             }
           }
         loop(index, Z.zero, Map.empty)
+      }
+    }
+
+  implicit def iimap[K, V](implicit evk: Infinite[K], evv: Infinite[V]): Infinite[Map[K, V]] =
+    new Infinite[Map[K, V]] {
+      val evo: Infinite[Option[V]] = ioption(evv)
+      def apply(index: Z): Map[K, V] = {
+        @tailrec def loop(index0: Z, keyIndex: Z, valIndex: Z, m0: Map[K, V]): Map[K, V] = {
+          def result: Map[K, V] =
+            evo(valIndex) match {
+              case Some(v) => m0.updated(evk(keyIndex), v)
+              case None => m0
+            }
+          if (index0.isZero) result
+          else if (index0.isEven) loop(index0 >> 1, keyIndex + 1, Z.zero, result)
+          else loop(index0 >> 1, keyIndex, valIndex + 1, m0)
+        }
+        loop(index, Z.zero, Z.zero, Map.empty)
       }
     }
 
@@ -304,6 +322,12 @@ object Countable extends Countable0 {
         val f = Functional.function1(index, cb.size)
         (a: A) => cb.get(f(ia.index(a))).get
       }
+    }
+
+  implicit def iiunction[A, B](implicit ca: Infinite[A], ia: Indexable[A], cb: Infinite[B]): Infinite[A => B] =
+    new Infinite[A => B] {
+      def apply(index: Z): A => B =
+        (a: A) => cb(Functional.infEvaluate(index, ia.index(a)))
     }
 
   // this only works if the A type is finite. A types that are

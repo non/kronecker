@@ -70,4 +70,13 @@ object Functional {
       else loop(index0 / outWidth, argIndex + 1)
     loop(index, Z.zero)
   }
+
+  def infEvaluate(index: Z, input: Z): Z = {
+    @tailrec def loop(index0: Z, argIndex: Z, counter: Z): Z =
+      if (argIndex > input) counter
+      else if (index0.isZero) { if (argIndex == input) counter else Z.zero }
+      else if (index0.isEven) loop(index0 >> 1, argIndex + 1, Z.zero)
+      else loop(index0 >> 1, argIndex, counter + 1)
+    loop(index, Z.zero, Z.zero)
+  }
 }
