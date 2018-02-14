@@ -44,17 +44,6 @@ import scala.annotation.tailrec
  */
 object Functional {
 
-  def function1(index: Z, outWidth: Z): Function1[Z, Z] =
-    if (outWidth.toBigInt.bitCount == 1) {
-      // outWidth is a power of two
-      val mask = outWidth - 1
-      val shift = outWidth.bitLength - 1
-      (input: Z) => fastEvaluate(index, input, mask, shift)
-    } else {
-      // outWidth is not a power of two
-      (input: Z) => evaluate(index, input, outWidth)
-    }
-
   def fastEvaluate(index: Z, input: Z, outMask: Z, outShift: Int): Z = {
     @tailrec def loop(index0: Z, argIndex: Z): Z =
       if (index0.isZero) Z.zero
@@ -71,6 +60,65 @@ object Functional {
     loop(index, Z.zero)
   }
 
+  /**
+   * Construct an anonymous function Z => Z using evaluate or
+   * fastEvaluate as appropriate.
+   */
+  def function1(index: Z, outWidth: Z): Function1[Z, Z] =
+    if (outWidth.toBigInt.bitCount == 1) {
+      // outWidth is a power of two
+      val mask = outWidth - 1
+      val shift = outWidth.bitLength - 1
+      (input: Z) => fastEvaluate(index, input, mask, shift)
+    } else {
+      // outWidth is not a power of two
+      (input: Z) => evaluate(index, input, outWidth)
+    }
+
+
+  /**
+   * Given an `index` identifying a function, and an `input` to that
+   * function, determine the function's output.
+   *
+   * We process `index` from least-significant bit to the
+   * most-signficant (i.e. right-to-left). We use a similar encoding
+   * to the one above for finite-ranged functions above, but use a
+   * base-1 code to identify the output value.
+   *
+   * Suppose our index is represented as 110110101010011111011100111
+   * in binary (i.e. 114638567).
+   *
+   * That value is interpreted as follows:
+   *
+   *   input:      9   8  7  6  5 4      3    2 1    0
+   *   index:  [0]11-011-01-01-01-0-011111-0111-0-0111
+   *   output:     2   2  1  1  1 0      5    3 0    3
+   *
+   * (The function returns 0 for all inputs > 9).
+   *
+   * Concretely this means that each output value is a (right-to-left)
+   * series of zero or more 1-bits followed by a (possibly implicit)
+   * 0-bit. The output value is the length of this series of 1-bits.
+   *
+   * Thus, the following interpretation of various indices:
+   *
+   *   index             function
+   *
+   *   0                 f(n) = 0 for all n >= 0
+   *
+   *   2^k - 1           f(0) = k
+   *                     f(n) = 0 for all n > 0
+   *
+   *   (2^k - 1) << j    f(j) = k
+   *                     f(n) = 0 for all n > 0 and n != j
+   *
+   *   ...10101010101    f(n) = 1 for all n >= 0
+   *   (assuming index is an infinitely-large binary sequence)
+   *
+   * Keep in mind that the inputs and outputs of this function are
+   * natural numbers (i.e. >= 0), even though we're implementing this
+   * method using the type Z.
+   */
   def infEvaluate(index: Z, input: Z): Z = {
     @tailrec def loop(index0: Z, argIndex: Z, counter: Z): Z =
       if (argIndex > input) counter
