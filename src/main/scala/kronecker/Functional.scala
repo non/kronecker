@@ -119,12 +119,95 @@ object Functional {
    * natural numbers (i.e. >= 0), even though we're implementing this
    * method using the type Z.
    */
-  def infEvaluate(index: Z, input: Z): Z = {
+  def infEvaluate1(index: Z, input: Z): Z = {
     @tailrec def loop(index0: Z, argIndex: Z, counter: Z): Z =
-      if (argIndex > input) counter
-      else if (index0.isZero) { if (argIndex == input) counter else Z.zero }
+      if (index0.isZero) { if (argIndex == input) counter else Z.zero }
       else if (index0.isEven) loop(index0 >> 1, argIndex + 1, Z.zero)
       else loop(index0 >> 1, argIndex, counter + 1)
     loop(index, Z.zero, Z.zero)
+  }
+
+
+  /**
+   * Given an `index` identifying a function, and an `input` to that
+   * function, determine the function's output.
+   *
+   * This is similar to infEvaluate1, but is base-3 instead of base-1.
+   *
+   * We read right-to-left in 2-bit chunks. Each chunk is a terminator
+   * (00) or else a ternary value of 0 (11), 1 (01), or 2 (10). All
+   * values end with a (possibly implicit) terminator.
+   *
+   * One complication is the naive version of this encoding has
+   * multiple representations of zero: 0, 11, 1111, and so on. To
+   * account for this, when we see 11 we "carry" an implicit 01
+   * following chunk, to be used if our sequence sees 00 next. We also
+   * have to continue carrying if we see 01 next (since otherwise 11
+   * and 0111 would both represent 3).
+   *
+   * Here are some examples of how this plays out:
+   *
+   *   input:         4      3    2      1  0
+   *   index:  [00]1011-000111-0011-001001-00
+   *   tern:        2 0  1 1 0  1 0    2 1  0
+   *   output:        6     12    3      7  0
+   */
+  def infEvaluate3(index: Z, input: Z): Z =
+    infEvaluate(index, input, 2)
+
+  /**
+   *              9   8  7   6 5 4 3   2 1  0
+   *   index:  [0]f-01f-0a-033-0-0-0-02f-0-01
+   *   base-15   10 110  a  33 0 0 0 020 0  1
+   *   output:   15 240 10  48 0 0 0  30 0  1
+   */
+  def infEvaluate15(index: Z, input: Z): Z =
+    infEvaluate(index, input, 4)
+
+  /**
+   * Given an `index` identifying a function, and an `input` to that
+   * function, determine the function's output.
+   *
+   * This is similar to infEvaluate1, but instead of base-1 it is
+   * base-mask (mask = 2^k - 1).
+   *
+   * We read right-to-left in k-bit chunks. Each chunk is a terminator
+   * (all zeros), or a logical zero (all ones), or else its standard
+   * value as a base-
+   * (10). All values end with a (possibly implicit) terminator.
+   *
+   * One complication is the naive version of this encoding has
+   * multiple representations of zero: 0, 11, 1111, and so on. To
+   * account for this, when we see 11 we "carry" an implicit 01
+   * following chunk, to be used if our sequence sees 00 next. We also
+   * have to continue carrying if we see 01 next (since otherwise 11
+   * and 0111 would both represent 3).
+   */
+  def infEvaluate(index: Z, input: Z, k: Int): Z = {
+
+    require(k <= 31) //fixme
+    val mask = (1 << k) - 1
+
+    @tailrec def loop(index0: Z, argIndex: Z, mult: Z, counter: Z, carry: Boolean): Z = {
+
+      def resolve: Z = if (carry) mult + counter else counter
+
+      if (index0.isZero) {
+        if (argIndex == input) resolve else Z.zero
+      } else {
+        val bits = (index0 & mask).toInt
+        val index1 = index0 >> k
+        if (bits == 0) {
+          if (argIndex == input) resolve
+          else loop(index1, argIndex + 1, Z.one, Z.zero, false)
+        } else {
+          val n = if (bits == mask) 0 else bits
+          val counter1 = if (n > 0) counter + (mult * n) else counter
+          val carry1 = n == 0 || (carry && n == 1)
+          loop(index1, argIndex, mult * mask, counter1, carry1)
+        }
+      }
+    }
+    loop(index, Z.zero, Z.one, Z.zero, false)
   }
 }

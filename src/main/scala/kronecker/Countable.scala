@@ -327,7 +327,7 @@ object Countable extends Countable0 {
   implicit def iiunction[A, B](implicit ca: Infinite[A], ia: Indexable[A], cb: Infinite[B]): Infinite[A => B] =
     new Infinite[A => B] {
       def apply(index: Z): A => B =
-        (a: A) => cb(Functional.infEvaluate(index, ia.index(a)))
+        (a: A) => cb(Functional.infEvaluate1(index, ia.index(a)))
     }
 
   // this only works if the A type is finite. A types that are
