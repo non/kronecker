@@ -5,11 +5,10 @@ import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.Prop.forAll
 import scala.reflect.runtime.universe.TypeTag
 
+import Testing._
+
 abstract class InfiniteLaws[A](implicit c: Infinite[A], tt: TypeTag[A])
     extends Properties(s"InfiniteLaws[${tt.tpe}]") {
-
-  implicit val arbitraryZ: Arbitrary[Z] =
-    Arbitrary(arbitrary[BigInt].map(n => Z(n.abs)))
 
   property("valid cardinality") =
     c.cardinality == Card.Infinite

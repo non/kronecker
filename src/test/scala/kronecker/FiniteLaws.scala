@@ -5,13 +5,12 @@ import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.Prop.forAll
 import scala.reflect.runtime.universe.TypeTag
 
+import Testing._
+
 abstract class FiniteLaws[A](implicit c: Finite[A], tt: TypeTag[A])
     extends Properties(s"FiniteLaws[${tt.tpe}]") {
 
   val card = c.cardinality
-
-  implicit val arbitraryZ: Arbitrary[Z] =
-    Arbitrary(arbitrary[BigInt].map(n => Z(n.abs)))
 
   property("valid cardinality") =
     card match {
