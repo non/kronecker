@@ -20,14 +20,6 @@ trait CMixed[C <: Coproduct] {
 }
 
 object CMixed {
-  implicit object CCNil extends CMixed[CNil] {
-    type FAux = CNil
-    type IAux = CNil
-    def finiteSize: Z = Z.zero
-    def infArity: Int = 0
-    def fget(index: Z): CNil = sys.error("unreachable")
-    def iapply(index: Z, i: Int): CNil = sys.error("unreachable")
-  }
 
   implicit def fcons[A, C <: Coproduct](implicit eva: Countable.Finite[A], evc: CMixed[C]): CMixed[A :+: C] =
     new CMixed[A :+: C] {
@@ -52,5 +44,34 @@ object CMixed {
         Inr(evc.fget(index))
       def iapply(index: Z, i: Int): A :+: C =
         if (i == 0) Inl(eva(index)) else Inr(evc.iapply(index, i - 1))
+    }
+
+}
+
+abstract class CMixedLowPri {
+
+  implicit def fcons2[A, C <: Coproduct](implicit eva: Countable.Finite[A], evc: CInfinite[C]): CMixed[A :+: C] =
+    new CMixed[A :+: C] {
+      type FAux = A :+: CNil
+      type IAux = C
+      val finiteSize: Z = eva.size
+      val infArity: Int = evc.arity
+      def fget(index: Z): A :+: C =
+        if (index < eva.size) Inl(eva.get(index).get)
+        else Inr(evc.apply(index - eva.size))
+      def iapply(index: Z, i: Int): A :+: C =
+        Inr(evc.apply0(index, i))
+    }
+
+  implicit def icons2[A, C <: Coproduct](implicit eva: Countable.Infinite[A], evc: CFinite[C]): CMixed[A :+: C] =
+    new CMixed[A :+: C] {
+      type FAux = C
+      type IAux = A :+: CNil
+      val finiteSize: Z = evc.size
+      val infArity: Int = 1
+      def fget(index: Z): A :+: C =
+        Inr(evc.get(index).get)
+      def iapply(index: Z, i: Int): A :+: C =
+        if (i == 0) Inl(eva(index)) else sys.error("!")
     }
 }

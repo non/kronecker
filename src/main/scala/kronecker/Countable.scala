@@ -78,6 +78,8 @@ sealed trait Countable[A] { self =>
 object Countable extends Countable0 {
 
   def apply[A](implicit ev: Countable[A]): Countable[A] = ev
+  def finite[A](implicit ev: Countable.Finite[A]): Countable.Finite[A] = ev
+  def infinite[A](implicit ev: Countable.Infinite[A]): Countable.Infinite[A] = ev
 
   /**
    * Countable[A] for finite sets of A values.
@@ -87,7 +89,7 @@ object Countable extends Countable0 {
 
     final def cardinality: Card = Card.Finite(size)
 
-    def translate[B](f: A => B): Finite[B] =
+    final def translate[B](f: A => B): Finite[B] =
       new Finite[B] {
         def size: Z = self.size
         def get(index: Z): Option[B] = self.get(index).map(f)
@@ -104,7 +106,7 @@ object Countable extends Countable0 {
 
     final def get(index: Z): Some[A] = Some(apply(index))
 
-    def translate[B](f: A => B): Infinite[B] =
+    final def translate[B](f: A => B): Infinite[B] =
       new Infinite[B] {
         def apply(index: Z): B = f(self(index))
       }
@@ -218,7 +220,7 @@ object Countable extends Countable0 {
       case Right(a) => Left(a)
     })
 
-  implicit def fset[A](implicit ev: Finite[A]): Finite[Set[A]] =
+  implicit def fset[A](implicit ev: Countable.Finite[A]): Countable.Finite[Set[A]] =
     FSet(ev)
   implicit def iset[A](implicit ev: Infinite[A]): Infinite[Set[A]] =
     ISet(ev)

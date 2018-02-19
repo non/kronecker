@@ -17,11 +17,11 @@ object CFinite{
     def get(index: Z): Option[CNil] = None
   }
 
-  implicit def cfcons[A, C <: Coproduct](implicit eva: Countable.Finite[A], evc: CFinite[C]): CFinite[A :+: C] =
+  implicit def cfcons[A, C <: Coproduct](implicit eva: Countable.Finite[A], evc: Lazy[CFinite[C]]): CFinite[A :+: C] =
     new CFinite[A :+: C] {
-      val size: Z = eva.size + evc.size
+      val size: Z = eva.size + evc.value.size
       def get(index: Z): Option[A :+: C] =
         if (index < eva.size) eva.get(index).map(Inl(_))
-        else evc.get(index - eva.size).map(Inr(_))
+        else evc.value.get(index - eva.size).map(Inr(_))
     }
 }

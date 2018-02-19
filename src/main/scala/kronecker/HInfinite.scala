@@ -12,13 +12,20 @@ trait HInfinite[H <: HList] {
 
 object HInfinite{
 
-  implicit object HINil extends HInfinite[HNil] {
-    def arity: Int = 0
-    def lookup(elem: List[Z]): HNil = {
-      require(elem.isEmpty, elem.toString)
-      HNil
+  // implicit object HINil extends HInfinite[HNil] {
+  //   def arity: Int = 0
+  //   def lookup(elem: List[Z]): HNil = {
+  //     require(elem.isEmpty, elem.toString)
+  //     HNil
+  //   }
+  // }
+
+  implicit def hilast[A](implicit eva: Countable.Infinite[A]): HInfinite[A :: HNil] =
+    new HInfinite[A :: HNil] {
+      def arity: Int = 1
+      def lookup(elem: List[Z]): A :: HNil =
+        eva(elem.head) :: HNil
     }
-  }
 
   implicit def hicons[A, H <: HList](implicit eva: Countable.Infinite[A], evh: HInfinite[H]): HInfinite[A :: H] =
     new HInfinite[A :: H] {

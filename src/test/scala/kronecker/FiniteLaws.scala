@@ -14,7 +14,6 @@ abstract class FiniteLaws[A](implicit c: Countable.Finite[A], tt: TypeTag[A])
 
   property("valid cardinality") =
     card match {
-      case Card.Zero => c.size == 0
       case Card.Finite(n) => c.size == n
       case Card.Infinite => false
     }

@@ -17,10 +17,17 @@ trait CInfinite[C <: Coproduct] {
 
 object CInfinite{
 
-  implicit object CFCNil extends CInfinite[CNil] {
-    def arity: Int = 0
-    def apply0(index: Z, i: Int): CNil = sys.error("unreachable")
-  }
+  // implicit object CFCNil extends CInfinite[CNil] {
+  //   def arity: Int = 0
+  //   def apply0(index: Z, i: Int): CNil = sys.error("unreachable")
+  // }
+
+  implicit def cflast[A](implicit eva: Countable.Infinite[A]): CInfinite[A :+: CNil] =
+    new CInfinite[A :+: CNil] {
+      val arity: Int = 1
+      def apply0(index: Z, i: Int): A :+: CNil =
+        if (i == 0) Inl(eva(index)) else sys.error("!")
+    }
 
   implicit def cfcons[A, C <: Coproduct](implicit eva: Countable.Infinite[A], evc: CInfinite[C]): CInfinite[A :+: C] =
     new CInfinite[A :+: C] {

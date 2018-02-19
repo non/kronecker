@@ -21,15 +21,7 @@ trait HMixed[H <: HList] {
   }
 }
 
-object HMixed {
-  implicit object HHNil extends HMixed[HNil] {
-    type FAux = HNil
-    type IAux = HNil
-    def infArity: Int = 0
-    def fbuild(index: Z): (Z, FAux) = (index, HNil)
-    def ibuild(elem: List[Z]): IAux = HNil
-    def combine(faux: HNil, iaux: HNil): HNil = HNil
-  }
+object HMixed extends HMixedLowPri {
 
   implicit def fcons[A, H <: HList](implicit eva: Countable.Finite[A], evh: HMixed[H]): HMixed[A :: H] =
     new HMixed[A :: H] {
@@ -59,5 +51,39 @@ object HMixed {
         eva(elem.head) :: evh.ibuild(elem.tail)
       def combine(faux: evh.FAux, iaux: A :: evh.IAux): A :: H =
         iaux.head :: evh.combine(faux, iaux.tail)
+    }
+
+}
+
+abstract class HMixedLowPri {
+
+  implicit def fcons2[A, H <: HList](implicit eva: Countable.Finite[A], evh: HInfinite[H]): HMixed[A :: H] =
+    new HMixed[A :: H] {
+      type FAux = A :: HNil
+      type IAux = H
+      def infArity: Int = evh.arity
+      def fbuild(index: Z): (Z, A :: HNil) = {
+        val (q0, m0) = index /% eva.size
+        (q0, eva.get(m0).get :: HNil)
+      }
+      def ibuild(elem: List[Z]): H =
+        evh.lookup(elem)
+      def combine(faux: A :: HNil, iaux: H): A :: H =
+        faux.head :: iaux
+    }
+
+  implicit def icons2[A, H <: HList](implicit eva: Countable.Infinite[A], evh: HFinite[H]): HMixed[A :: H] =
+    new HMixed[A :: H] {
+      type FAux = H
+      type IAux = A :: HNil
+      def infArity: Int = 1
+      def fbuild(index: Z): (Z, H) = {
+        val (q, m) = index /% evh.size
+        (q, evh.get(m).get)
+      }
+      def ibuild(elem: List[Z]): A :: HNil =
+        eva(elem.head) :: HNil
+      def combine(faux: H, iaux: A :: HNil): A :: H =
+        iaux.head :: faux
     }
 }
