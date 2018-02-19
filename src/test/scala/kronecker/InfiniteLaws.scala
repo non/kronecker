@@ -7,7 +7,7 @@ import scala.reflect.runtime.universe.TypeTag
 
 import Testing._
 
-abstract class InfiniteLaws[A](implicit c: Infinite[A], tt: TypeTag[A])
+abstract class InfiniteLaws[A](implicit c: Countable.Infinite[A], tt: TypeTag[A])
     extends Properties(s"InfiniteLaws[${tt.tpe}]") {
 
   property("valid cardinality") =

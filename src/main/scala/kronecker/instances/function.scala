@@ -1,6 +1,8 @@
 package kronecker
 package instances
 
+import Countable.{Finite, Infinite}
+
 case class FFFunction[A, B](ca: Finite[A], ia: Indexable[A], cb: Finite[B]) extends Finite[A => B] {
 
   // NOTE: powOf() will crash for unsupportedly-large cardinalities

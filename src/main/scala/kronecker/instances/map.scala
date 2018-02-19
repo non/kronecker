@@ -3,8 +3,10 @@ package instances
 
 import scala.annotation.tailrec
 
+import Countable.{Finite, Infinite}
+
 case class FFMap[K, V](evk: Finite[K], evv: Finite[V]) extends Finite[Map[K, V]] {
-  val evo: Finite[Option[V]] = FOption(evv)
+  val evo: Finite[Option[V]] = new CFOption(evv)
 
   // NOTE: powOf() will crash for unsupportedly-large cardinalities
   val size: Z = powOf(evo.size, evk.size)
@@ -26,7 +28,7 @@ case class FFMap[K, V](evk: Finite[K], evv: Finite[V]) extends Finite[Map[K, V]]
 }
 
 case class IFMap[K, V](evk: Infinite[K], evv: Finite[V]) extends Infinite[Map[K, V]] {
-  val evo: Finite[Option[V]] = FOption(evv)
+  val evo: Finite[Option[V]] = new CFOption(evv)
 
   def apply(index: Z): Map[K, V] = {
     @tailrec def loop(index0: Z, keyIndex: Z, m0: Map[K, V]): Map[K, V] =
@@ -45,7 +47,7 @@ case class IFMap[K, V](evk: Infinite[K], evv: Finite[V]) extends Infinite[Map[K,
 }
 
 case class FIMap[K, V](evk: Finite[K], evv: Infinite[V]) extends Infinite[Map[K, V]] {
-  val evo: Infinite[Option[V]] = IOption(evv)
+  val evo: Infinite[Option[V]] = new CIOption(evv)
 
   def apply(index: Z): Map[K, V] = {
     val k = 4
@@ -66,7 +68,7 @@ case class FIMap[K, V](evk: Finite[K], evv: Infinite[V]) extends Infinite[Map[K,
 }
 
 case class IIMap[K, V](evk: Infinite[K], evv: Infinite[V]) extends Infinite[Map[K, V]] {
-  val evo: Infinite[Option[V]] = IOption(evv)
+  val evo: Infinite[Option[V]] = new CIOption(evv)
 
   def apply(index: Z): Map[K, V] = {
     val k = 4

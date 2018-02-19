@@ -22,7 +22,7 @@ object CInfinite{
     def apply0(index: Z, i: Int): CNil = sys.error("unreachable")
   }
 
-  implicit def cfcons[A, C <: Coproduct](implicit eva: Infinite[A], evc: CInfinite[C]): CInfinite[A :+: C] =
+  implicit def cfcons[A, C <: Coproduct](implicit eva: Countable.Infinite[A], evc: CInfinite[C]): CInfinite[A :+: C] =
     new CInfinite[A :+: C] {
       val arity: Int = 1 + evc.arity
       def apply0(index: Z, i: Int): A :+: C =

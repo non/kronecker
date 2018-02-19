@@ -7,7 +7,7 @@ import scala.reflect.runtime.universe.TypeTag
 
 import Testing._
 
-abstract class FiniteLaws[A](implicit c: Finite[A], tt: TypeTag[A])
+abstract class FiniteLaws[A](implicit c: Countable.Finite[A], tt: TypeTag[A])
     extends Properties(s"FiniteLaws[${tt.tpe}]") {
 
   val card = c.cardinality

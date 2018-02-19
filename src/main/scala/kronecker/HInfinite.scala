@@ -20,7 +20,7 @@ object HInfinite{
     }
   }
 
-  implicit def hicons[A, H <: HList](implicit eva: Infinite[A], evh: HInfinite[H]): HInfinite[A :: H] =
+  implicit def hicons[A, H <: HList](implicit eva: Countable.Infinite[A], evh: HInfinite[H]): HInfinite[A :: H] =
     new HInfinite[A :: H] {
       def arity: Int = evh.arity + 1
       def lookup(elem: List[Z]): A :: H =

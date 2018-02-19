@@ -18,7 +18,7 @@ object HFinite{
       if (index == 0) Some(HNil) else None
   }
 
-  implicit def hicons[A, H <: HList](implicit eva: Finite[A], evh: HFinite[H]): HFinite[A :: H] =
+  implicit def hicons[A, H <: HList](implicit eva: Countable.Finite[A], evh: HFinite[H]): HFinite[A :: H] =
     new HFinite[A :: H] {
       val size: Z = eva.size * evh.size
       def get(index: Z): Option[A :: H] = {

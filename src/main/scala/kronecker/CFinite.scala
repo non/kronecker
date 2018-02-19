@@ -17,7 +17,7 @@ object CFinite{
     def get(index: Z): Option[CNil] = None
   }
 
-  implicit def cfcons[A, C <: Coproduct](implicit eva: Finite[A], evc: CFinite[C]): CFinite[A :+: C] =
+  implicit def cfcons[A, C <: Coproduct](implicit eva: Countable.Finite[A], evc: CFinite[C]): CFinite[A :+: C] =
     new CFinite[A :+: C] {
       val size: Z = eva.size + evc.size
       def get(index: Z): Option[A :+: C] =

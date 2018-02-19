@@ -31,7 +31,7 @@ object HMixed {
     def combine(faux: HNil, iaux: HNil): HNil = HNil
   }
 
-  implicit def fcons[A, H <: HList](implicit eva: Finite[A], evh: HMixed[H]): HMixed[A :: H] =
+  implicit def fcons[A, H <: HList](implicit eva: Countable.Finite[A], evh: HMixed[H]): HMixed[A :: H] =
     new HMixed[A :: H] {
       type FAux = A :: evh.FAux
       type IAux = evh.IAux
@@ -47,7 +47,7 @@ object HMixed {
         faux.head :: evh.combine(faux.tail, iaux)
     }
 
-  implicit def icons[A, H <: HList](implicit eva: Infinite[A], evh: HMixed[H]): HMixed[A :: H] =
+  implicit def icons[A, H <: HList](implicit eva: Countable.Infinite[A], evh: HMixed[H]): HMixed[A :: H] =
     new HMixed[A :: H] {
       type FAux = evh.FAux
       type IAux = A :: evh.IAux

@@ -3,6 +3,8 @@ package instances
 
 import scala.annotation.tailrec
 
+import Countable.{Finite, Infinite}
+
 // this only works if the A type is finite. A types that are
 // infinite require a different strategy than the lexicographic
 // order (since you can never "finish" the length=1 lists you have

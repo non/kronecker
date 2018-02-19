@@ -3,6 +3,8 @@ package instances
 
 import scala.annotation.tailrec
 
+import Countable.{Finite, Infinite}
+
 // Set(), Set(0), Set(1), Set(0, 1), Set(2), Set(0, 2), Set(1, 2),
 // Set(0, 1, 2), Set(3), ...
 case class FSet[A](ev: Finite[A]) extends Finite[Set[A]] {

@@ -1,7 +1,7 @@
 package kronecker
 
-import java.lang.Double.longBitsToDouble
-import java.lang.Float.intBitsToFloat
+import java.lang.Double.{doubleToRawLongBits, longBitsToDouble}
+import java.lang.Float.{floatToRawIntBits, intBitsToFloat}
 import kronecker.instances._
 import scala.annotation.tailrec
 import scala.reflect.ClassTag
@@ -73,117 +73,150 @@ sealed trait Countable[A] { self =>
   def translate[B](f: A => B): Countable[B]
 }
 
-/**
- * Countable[A] for finite sets of A values.
- */
-trait Finite[A] extends Countable[A] { self =>
-  def size: Z
-
-  final def cardinality: Card = Card.Finite(size)
-
-  def translate[B](f: A => B): Finite[B] =
-    new Finite[B] {
-      def size: Z = self.size
-      def get(index: Z): Option[B] = self.get(index).map(f)
-    }
-}
-
-/**
- * Countable[A] for infinite (unbounded) sets of A values.
- */
-trait Infinite[A] extends Countable[A] { self =>
-  def apply(index: Z): A
-
-  final def cardinality: Card = Card.Infinite
-
-  final def get(index: Z): Some[A] = Some(apply(index))
-
-  def translate[B](f: A => B): Infinite[B] =
-    new Infinite[B] {
-      def apply(index: Z): B = f(self(index))
-    }
-}
+//import Countable.{Finite, Infinite}
 
 object Countable extends Countable0 {
 
   def apply[A](implicit ev: Countable[A]): Countable[A] = ev
 
+  /**
+   * Countable[A] for finite sets of A values.
+   */
+  trait Finite[A] extends Countable[A] { self =>
+    def size: Z
+
+    final def cardinality: Card = Card.Finite(size)
+
+    def translate[B](f: A => B): Finite[B] =
+      new Finite[B] {
+        def size: Z = self.size
+        def get(index: Z): Option[B] = self.get(index).map(f)
+      }
+  }
+
+  /**
+   * Countable[A] for infinite (unbounded) sets of A values.
+   */
+  trait Infinite[A] extends Countable[A] { self =>
+    def apply(index: Z): A
+
+    final def cardinality: Card = Card.Infinite
+
+    final def get(index: Z): Some[A] = Some(apply(index))
+
+    def translate[B](f: A => B): Infinite[B] =
+      new Infinite[B] {
+        def apply(index: Z): B = f(self(index))
+      }
+  }
+
   // 0, 1, -1, 2, -2, ...
-  implicit val cz: Infinite[Z] =
-    new Infinite[Z] {
+  implicit val cz: Indexable.Infinite[Z] =
+    new Indexable.Infinite[Z] {
       def apply(index: Z): Z = {
         val (quot, mod) = (index + 1) /% Z.two
         val sign = Z.one - (mod * Z.two)
         sign * quot
       }
+
+      val minusTwo = Z(-2)
+
+      def index(n: Z): Z =
+        n.signum match {
+          case 0 => Z.zero
+          case x if x > 0 => n * Z.two - Z.one
+          case _ => n * minusTwo
+        }
     }
 
   // .
-  implicit val cnothing: Finite[Nothing] =
-    FromRange(Z.zero, _ => sys.error("impossible"))
+  implicit val cnothing: Indexable.Finite[Nothing] =
+    Indexable.FromRange[Nothing](Z.zero, _ => sys.error("impossible"))(_ => sys.error("impossible"))
 
   // ().
-  implicit val cunit: Finite[Unit] =
-    FromRange(Z.one, _ => ())
+  implicit val cunit: Indexable.Finite[Unit] =
+    Indexable.FromRange(Z.one, _ => ())(_ => Z.zero)
 
   // false, true.
-  implicit val cboolean: Finite[Boolean] =
-    FromRange(Z.two, _ == Z.one)
+  implicit val cboolean: Indexable.Finite[Boolean] =
+    Indexable.FromRange(Z.two, _ == Z.one)(b => Z(if (b) 1 else 0))
 
   // TODO: the signed streams could be in a nicer order; right now the
   // negatives only come after you exhaust the positives.
 
   // 0, 1, 2, ..., 127, -128, -127, ..., -1.
-  implicit val cbyte: Finite[Byte] =
-    FromRange(Z.one << 8, _.toByte)
+  implicit val cbyte: Indexable.Finite[Byte] =
+    Indexable.FromRange(Z.one << 8, _.toByte)(n => Z(n & 0xff))
 
   // 0, 1, 2, ..., 65535, -65536, -65535, ..., -1.
-  implicit val cshort: Finite[Short] =
-    FromRange(Z.one << 16, _.toShort)
+  implicit val cshort: Indexable.Finite[Short] =
+    Indexable.FromRange(Z.one << 16, _.toShort)(n => Z(n & 0xffff))
 
   // 0, 1, 2, ..., 65535, -65536, -65535, ..., -1.
-  implicit val cchar: Finite[Char] =
-    FromRange(Z.one << 16, _.toChar)
+  implicit val cchar: Indexable.Finite[Char] =
+    Indexable.FromRange(Z.one << 16, _.toChar)(Z(_))
 
   // 0, 1, 2, ... -1.
-  implicit val cint: Finite[Int] =
-    FromRange(Z.one << 32, _.toInt)
+  implicit val cint: Indexable.Finite[Int] =
+    Indexable.FromRange(Z.one << 32, _.toInt)(n => Z(n & 0xffffffffL))
+
+  val BeyondLong = Z.one << 64
 
   // 0, 1, 2, ... -1.
-  implicit val clong: Finite[Long] =
-    FromRange(Z.one << 64, _.toLong)
+  implicit val clong: Indexable.Finite[Long] =
+    Indexable.FromRange(BeyondLong, _.toLong)(n => if (n >= 0L) Z(n) else BeyondLong + n)
 
   // TODO: the floating point streams could be in a MUCH nicer order;
   // the current order is pretty much nonsense.
 
-  implicit val cfloat: Finite[Float] =
-    FromRange(Z.one << 32, n => intBitsToFloat(n.toInt))
+  implicit val cfloat: Indexable.Finite[Float] =
+    Indexable.FromRange(Z.one << 32, n => intBitsToFloat(n.toInt))(x => Z(floatToRawIntBits(x)))
 
-  implicit val cdouble: Finite[Double] =
-    FromRange(Z.one << 64, n => longBitsToDouble(n.toLong))
+  implicit val cdouble: Indexable.Finite[Double] =
+    Indexable.FromRange(Z.one << 64, n => longBitsToDouble(n.toLong))(x => Z(doubleToRawLongBits(x)))
 
-  implicit val cbigInt: Infinite[BigInt] =
-    cz.translate(_.toBigInt)
+  implicit val cbigInt: Indexable.Infinite[BigInt] =
+    cz.imap(_.toBigInt)(Z(_))
 
-  implicit val cbigInteger: Infinite[java.math.BigInteger] =
-    cz.translate(_.toBigInt.bigInteger)
+  implicit val cbigInteger: Indexable.Infinite[java.math.BigInteger] =
+    cz.imap(_.toBigInt.bigInteger)(Z(_))
 
-  implicit def foption[A](implicit ev: Finite[A]): Finite[Option[A]] =
-    FOption(ev)
-  implicit def ioption[A](implicit ev: Infinite[A]): Infinite[Option[A]] =
-    IOption(ev)
+  implicit def cfoption[A](implicit ev: Countable.Finite[A]): Countable.Finite[Option[A]] =
+    new CFOption(ev)
+  implicit def cioption[A](implicit ev: Countable.Infinite[A]): Countable.Infinite[Option[A]] =
+    new CIOption(ev)
 
-  implicit def feither[A, B](implicit eva: Finite[A], evb: Finite[B]): Finite[Either[A, B]] =
-    FFEither(eva, evb)
-  implicit def fieither[A, B](implicit eva: Finite[A], evb: Infinite[B]): Infinite[Either[A, B]] =
-    FIEither(eva, evb)
-  implicit def iieither[A, B](implicit eva: Infinite[A], evb: Infinite[B]): Infinite[Either[A, B]] =
-    IIEither(eva, evb)
-  implicit def ifeither[A, B](implicit eva: Infinite[A], evb: Finite[B]): Infinite[Either[A, B]] =
-    FIEither(evb, eva).translate {
+  implicit def ifoption[A](implicit ev: Indexable.Finite[A]): Indexable.Finite[Option[A]] =
+    new NFOption(ev)
+  implicit def iioption[A](implicit ev: Indexable.Infinite[A]): Indexable.Infinite[Option[A]] =
+    new NIOption(ev)
+
+  implicit def cffeither[A, B](implicit eva: Countable.Finite[A], evb: Countable.Finite[B]): Countable.Finite[Either[A, B]] =
+    new CFFEither(eva, evb)
+  implicit def cfieither[A, B](implicit eva: Countable.Finite[A], evb: Countable.Infinite[B]): Countable.Infinite[Either[A, B]] =
+    new CFIEither(eva, evb)
+  implicit def ciieither[A, B](implicit eva: Countable.Infinite[A], evb: Countable.Infinite[B]): Countable.Infinite[Either[A, B]] =
+    new CIIEither(eva, evb)
+  implicit def cifeither[A, B](implicit eva: Countable.Infinite[A], evb: Countable.Finite[B]): Countable.Infinite[Either[A, B]] =
+    cfieither(evb, eva).translate {
       case Left(b) => Right(b)
       case Right(a) => Left(a)
     }
+
+  implicit def nffeither[A, B](implicit eva: Indexable.Finite[A], evb: Indexable.Finite[B]): Indexable.Finite[Either[A, B]] =
+    new NFFEither(eva, evb)
+  implicit def nfieither[A, B](implicit eva: Indexable.Finite[A], evb: Indexable.Infinite[B]): Indexable.Infinite[Either[A, B]] =
+    new NFIEither(eva, evb)
+  implicit def niieither[A, B](implicit eva: Indexable.Infinite[A], evb: Indexable.Infinite[B]): Indexable.Infinite[Either[A, B]] =
+    new NIIEither(eva, evb)
+  implicit def nifeither[A, B](implicit eva: Indexable.Infinite[A], evb: Indexable.Finite[B]): Indexable.Infinite[Either[A, B]] =
+    nfieither(evb, eva).imap({
+      case Left(b) => Right(b)
+      case Right(a) => Left(a)
+    })({
+      case Left(b) => Right(b)
+      case Right(a) => Left(a)
+    })
 
   implicit def fset[A](implicit ev: Finite[A]): Finite[Set[A]] =
     FSet(ev)
@@ -232,36 +265,28 @@ object Countable extends Countable0 {
   // quite ugly
   implicit val cstring: Infinite[String] =
     LexicographicList(cchar).translate(_.mkString)
-
-  // helpful class for defining finite instances derived from integer ranges.
-  case class FromRange[A](size: Z, f: Z => A) extends Finite[A] {
-    def get(index: Z): Option[A] =
-      if (index >= size) None
-      else if (index >= 0) Some(f(index))
-      else sys.error("!")
-  }
 }
 
 abstract class Countable0 extends Countable1 {
 
   // support case classes and tuples via generic derivation.
-  implicit def fhgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HFinite[H]): Finite[A] =
+  implicit def fhgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HFinite[H]): Countable.Finite[A] =
     fhlist(evh).translate(gen.from)
 
   // support case classes and tuples via generic derivation.
-  implicit def fcgeneric[A, C <: Coproduct](implicit gen: Generic.Aux[A, C], evc: CFinite[C]): Finite[A] =
+  implicit def fcgeneric[A, C <: Coproduct](implicit gen: Generic.Aux[A, C], evc: CFinite[C]): Countable.Finite[A] =
     fcoproduct(evc).translate(gen.from)
 
   // suport Hlists
-  implicit def fhlist[H <: HList](implicit evh: HFinite[H]): Finite[H] =
-    new Finite[H] {
+  implicit def fhlist[H <: HList](implicit evh: HFinite[H]): Countable.Finite[H] =
+    new Countable.Finite[H] {
       def size = evh.size
       def get(index: Z): Option[H] = evh.get(index)
     }
 
   // suport Coproducts
-  implicit def fcoproduct[C <: Coproduct](implicit evc: CFinite[C]): Finite[C] =
-    new Finite[C] {
+  implicit def fcoproduct[C <: Coproduct](implicit evc: CFinite[C]): Countable.Finite[C] =
+    new Countable.Finite[C] {
       def size = evc.size
       def get(index: Z): Option[C] = evc.get(index)
     }
@@ -270,42 +295,78 @@ abstract class Countable0 extends Countable1 {
 abstract class Countable1 extends Countable2 {
 
   // support case classes and tuples via generic derivation.
-  implicit def ihgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HInfinite[H]): Infinite[A] =
+  implicit def ihgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HInfinite[H]): Countable.Infinite[A] =
     ihlist(evh).translate(gen.from)
 
   // support case classes and tuples via generic derivation.
-  implicit def icgeneric[A, C <: Coproduct](implicit gen: Generic.Aux[A, C], evc: CInfinite[C]): Infinite[A] =
+  implicit def icgeneric[A, C <: Coproduct](implicit gen: Generic.Aux[A, C], evc: CInfinite[C]): Countable.Infinite[A] =
     icoproduct(evc).translate(gen.from)
 
   // suport Hlists
-  implicit def ihlist[H <: HList](implicit evh: HInfinite[H]): Infinite[H] =
-    new Infinite[H] {
+  implicit def ihlist[H <: HList](implicit evh: HInfinite[H]): Countable.Infinite[H] =
+    new Countable.Infinite[H] {
       val arity = evh.arity
       def apply(index: Z): H =
         evh.lookup(Diagonal.atIndex(arity, index))
     }
 
   // suport Coproducts
-  implicit def icoproduct[C <: Coproduct](implicit evc: CInfinite[C]): Infinite[C] =
-    new Infinite[C] {
+  implicit def icoproduct[C <: Coproduct](implicit evc: CInfinite[C]): Countable.Infinite[C] =
+    new Countable.Infinite[C] {
       def apply(index: Z): C = evc(index)
     }
 }
 
 abstract class Countable2 {
-  implicit def mhgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HMixed[H]): Infinite[A] =
+  implicit def mhgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HMixed[H]): Countable.Infinite[A] =
     mhlist(evh).translate(gen.from)
 
-  implicit def mhlist[H <: HList](implicit evh: HMixed[H]): Infinite[H] =
-    new Infinite[H] {
+  implicit def mhlist[H <: HList](implicit evh: HMixed[H]): Countable.Infinite[H] =
+    new Countable.Infinite[H] {
       def apply(index: Z): H = evh.build(index)
     }
 
-  implicit def mcgeneric[A, C <: Coproduct](implicit gen: Generic.Aux[A, C], evc: CMixed[C]): Infinite[A] =
+  implicit def mcgeneric[A, C <: Coproduct](implicit gen: Generic.Aux[A, C], evc: CMixed[C]): Countable.Infinite[A] =
     mcoproduct(evc).translate(gen.from)
 
-  implicit def mcoproduct[C <: Coproduct](implicit evc: CMixed[C]): Infinite[C] =
-    new Infinite[C] {
+  implicit def mcoproduct[C <: Coproduct](implicit evc: CMixed[C]): Countable.Infinite[C] =
+    new Countable.Infinite[C] {
       def apply(index: Z): C = evc(index)
     }
+}
+
+sealed trait Indexable[A] extends Countable[A] { self =>
+  def index(a: A): Z
+
+  def imap[B](f: A => B)(g: B => A): Indexable[B]
+}
+
+object Indexable {
+
+  trait Finite[A] extends Indexable[A] with Countable.Finite[A] { self =>
+
+    final def imap[B](f: A => B)(g: B => A): Indexable.Finite[B] =
+      new Finite[B] {
+        def size: Z = self.size
+        def get(index: Z): Option[B] = self.get(index).map(f)
+        def index(b: B): Z = self.index(g(b))
+      }
+  }
+
+  trait Infinite[A] extends Indexable[A] with Countable.Infinite[A] { self =>
+    final def imap[B](f: A => B)(g: B => A): Indexable.Infinite[B] =
+      new Infinite[B] {
+        def apply(index: Z): B = f(self(index))
+        def index(b: B): Z = self.index(g(b))
+      }
+  }
+
+  // helpful class for defining finite instances derived from integer ranges.
+  case class FromRange[A](size: Z, f: Z => A)(g: A => Z) extends Finite[A] {
+    def get(index: Z): Option[A] =
+      if (index >= size) None
+      else if (index >= 0) Some(f(index))
+      else sys.error("!")
+    def index(a: A): Z = g(a)
+  }
 }

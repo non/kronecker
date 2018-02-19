@@ -29,7 +29,7 @@ object CMixed {
     def iapply(index: Z, i: Int): CNil = sys.error("unreachable")
   }
 
-  implicit def fcons[A, C <: Coproduct](implicit eva: Finite[A], evc: CMixed[C]): CMixed[A :+: C] =
+  implicit def fcons[A, C <: Coproduct](implicit eva: Countable.Finite[A], evc: CMixed[C]): CMixed[A :+: C] =
     new CMixed[A :+: C] {
       type FAux = A :+: evc.FAux
       type IAux = evc.IAux
@@ -42,7 +42,7 @@ object CMixed {
         Inr(evc.iapply(index, i))
     }
 
-  implicit def icons[A, C <: Coproduct](implicit eva: Infinite[A], evc: CMixed[C]): CMixed[A :+: C] =
+  implicit def icons[A, C <: Coproduct](implicit eva: Countable.Infinite[A], evc: CMixed[C]): CMixed[A :+: C] =
     new CMixed[A :+: C] {
       type FAux = evc.FAux
       type IAux = A :+: evc.IAux
