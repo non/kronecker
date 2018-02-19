@@ -1,9 +1,10 @@
 package kronecker
 
-import scala.annotation.tailrec
-
 import java.lang.Double.longBitsToDouble
 import java.lang.Float.intBitsToFloat
+import kronecker.instances._
+import scala.annotation.tailrec
+import scala.reflect.ClassTag
 import shapeless._
 
 /**
@@ -107,50 +108,6 @@ object Countable extends Countable0 {
 
   def apply[A](implicit ev: Countable[A]): Countable[A] = ev
 
-  // .
-  implicit val cnothing: Finite[Nothing] =
-    Integers(Z.zero, _ => sys.error("impossible"))
-
-  // ().
-  implicit val cunit: Finite[Unit] =
-    Integers(Z.one, _ => ())
-
-  // false, true.
-  implicit val cboolean: Finite[Boolean] =
-    Integers(Z.two, _ == Z.one)
-
-  // TODO: the signed streams could be in a nicer order; right now the
-  // negatives only come after you exhaust the positives.
-
-  // 0, 1, 2, ..., 127, -128, -127, ..., -1.
-  implicit val cbyte: Finite[Byte] =
-    Integers(Z.one << 8, _.toByte)
-
-  // 0, 1, 2, ..., 65535, -65536, -65535, ..., -1.
-  implicit val cshort: Finite[Short] =
-    Integers(Z.one << 16, _.toShort)
-
-  // 0, 1, 2, ..., 65535, -65536, -65535, ..., -1.
-  implicit val cchar: Finite[Char] =
-    Integers(Z.one << 16, _.toChar)
-
-  // 0, 1, 2, ... -1.
-  implicit val cint: Finite[Int] =
-    Integers(Z.one << 32, _.toInt)
-
-  // 0, 1, 2, ... -1.
-  implicit val clong: Finite[Long] =
-    Integers(Z.one << 64, _.toLong)
-
-  // TODO: the floating point streams could be in a MUCH nicer order;
-  // the current order is pretty much nonsense.
-
-  implicit val cfloat: Finite[Float] =
-    Integers(Z.one << 32, n => intBitsToFloat(n.toInt))
-
-  implicit val cdouble: Finite[Double] =
-    Integers(Z.one << 64, n => longBitsToDouble(n.toLong))
-
   // 0, 1, -1, 2, -2, ...
   implicit val cz: Infinite[Z] =
     new Infinite[Z] {
@@ -161,207 +118,123 @@ object Countable extends Countable0 {
       }
     }
 
-  // None, Some(0), Some(1), ...
+  // .
+  implicit val cnothing: Finite[Nothing] =
+    FromRange(Z.zero, _ => sys.error("impossible"))
+
+  // ().
+  implicit val cunit: Finite[Unit] =
+    FromRange(Z.one, _ => ())
+
+  // false, true.
+  implicit val cboolean: Finite[Boolean] =
+    FromRange(Z.two, _ == Z.one)
+
+  // TODO: the signed streams could be in a nicer order; right now the
+  // negatives only come after you exhaust the positives.
+
+  // 0, 1, 2, ..., 127, -128, -127, ..., -1.
+  implicit val cbyte: Finite[Byte] =
+    FromRange(Z.one << 8, _.toByte)
+
+  // 0, 1, 2, ..., 65535, -65536, -65535, ..., -1.
+  implicit val cshort: Finite[Short] =
+    FromRange(Z.one << 16, _.toShort)
+
+  // 0, 1, 2, ..., 65535, -65536, -65535, ..., -1.
+  implicit val cchar: Finite[Char] =
+    FromRange(Z.one << 16, _.toChar)
+
+  // 0, 1, 2, ... -1.
+  implicit val cint: Finite[Int] =
+    FromRange(Z.one << 32, _.toInt)
+
+  // 0, 1, 2, ... -1.
+  implicit val clong: Finite[Long] =
+    FromRange(Z.one << 64, _.toLong)
+
+  // TODO: the floating point streams could be in a MUCH nicer order;
+  // the current order is pretty much nonsense.
+
+  implicit val cfloat: Finite[Float] =
+    FromRange(Z.one << 32, n => intBitsToFloat(n.toInt))
+
+  implicit val cdouble: Finite[Double] =
+    FromRange(Z.one << 64, n => longBitsToDouble(n.toLong))
+
+  implicit val cbigInt: Infinite[BigInt] =
+    cz.translate(_.toBigInt)
+
+  implicit val cbigInteger: Infinite[java.math.BigInteger] =
+    cz.translate(_.toBigInt.bigInteger)
+
   implicit def foption[A](implicit ev: Finite[A]): Finite[Option[A]] =
-    new Finite[Option[A]] {
-      val size: Z = ev.size + 1
-      def get(index: Z): Option[Option[A]] =
-        if (index == 0) Some(None)
-        else ev.get(index - 1).map(Some(_))
-    }
-
-  // None, Some(0), Some(1), ...
+    FOption(ev)
   implicit def ioption[A](implicit ev: Infinite[A]): Infinite[Option[A]] =
-    new Infinite[Option[A]] {
-      def apply(index: Z): Option[A] =
-        if (index == 0) None else Some(ev(index - 1))
-    }
+    IOption(ev)
 
-  // Left(0), Left(1), ..., Right(0), Right(1), ...
   implicit def feither[A, B](implicit eva: Finite[A], evb: Finite[B]): Finite[Either[A, B]] =
-    new Finite[Either[A, B]] {
-      val size: Z = eva.size + evb.size
-      def get(index: Z): Option[Either[A, B]] =
-        if (index < eva.size) eva.get(index).map(Left(_))
-        else evb.get(index - eva.size).map(Right(_))
-    }
-
-  // Left(0), Left(1), ..., Right(0), Right(1), ...
+    FFEither(eva, evb)
   implicit def fieither[A, B](implicit eva: Finite[A], evb: Infinite[B]): Infinite[Either[A, B]] =
-    new Infinite[Either[A, B]] {
-      def apply(index: Z): Either[A, B] =
-        if (index < eva.size) Left(eva.get(index).get)
-        else Right(evb(index - eva.size))
-    }
-
-  // Right(0), Right(1), ... Left(0), Left(1), ...
+    FIEither(eva, evb)
+  implicit def iieither[A, B](implicit eva: Infinite[A], evb: Infinite[B]): Infinite[Either[A, B]] =
+    IIEither(eva, evb)
   implicit def ifeither[A, B](implicit eva: Infinite[A], evb: Finite[B]): Infinite[Either[A, B]] =
-    fieither[B, A](evb, eva).translate {
+    FIEither(evb, eva).translate {
       case Left(b) => Right(b)
       case Right(a) => Left(a)
     }
 
-  // Left(0), Right(0), Left(1), Right(1), ...
-  implicit def ieither[A, B](implicit eva: Infinite[A], evb: Infinite[B]): Infinite[Either[A, B]] =
-    new Infinite[Either[A, B]] {
-      def apply(index: Z): Either[A, B] = {
-        val i = index >> 1
-        if (index.isEven) Left(eva(i)) else Right(evb(i))
-      }
-    }
-
-  val MaxExponent = Z(2).pow(65536)
-
-  // Set(), Set(0), Set(1), Set(0, 1), Set(2), Set(0, 2), Set(1, 2),
-  // Set(0, 1, 2), Set(3), ...
   implicit def fset[A](implicit ev: Finite[A]): Finite[Set[A]] =
-    new Finite[Set[A]] {
-      // NOTE: powOf() will crash for unsupportedly-large cardinalities
-      val size: Z = powOf(Z(2), ev.size)
-      def get(index: Z): Option[Set[A]] = {
-        @tailrec def loop(rem: Z, index: Z, s0: Set[A]): Set[A] =
-          if (rem.isZero || index >= ev.size) s0
-          else {
-            val s1 = if (rem.isOdd) s0 + ev.get(index).get else s0
-            loop(rem >> 1, index + 1, s1)
-          }
-        if (index >= size) None
-        else Some(loop(index, Z.zero, Set.empty))
-      }
-    }
-
-  // Set(), Set(0), Set(1), Set(0, 1), Set(2), Set(0, 2), Set(1, 2),
-  // Set(0, 1, 2), Set(3), ...
+    FSet(ev)
   implicit def iset[A](implicit ev: Infinite[A]): Infinite[Set[A]] =
-    new Infinite[Set[A]] {
-      def apply(index: Z): Set[A] = {
-        @tailrec def loop(rem: Z, index: Z, s0: Set[A]): Set[A] =
-          if (rem.isZero) s0
-          else if (rem.isOdd) loop(rem >> 1, index + 1, s0 + ev(index))
-          else loop(rem >> 1, index + 1, s0)
-        loop(index, Z.zero, Set.empty)
-      }
-    }
+    ISet(ev)
 
-  implicit def fmap[K, V](implicit evk: Finite[K], evv: Finite[V]): Finite[Map[K, V]] =
-    new Finite[Map[K, V]] {
-      val evo: Finite[Option[V]] = foption(evv)
-      // NOTE: powOf() will crash for unsupportedly-large cardinalities
-      val size: Z = powOf(evo.size, evk.size)
-      def get(index: Z): Option[Map[K, V]] = {
-        @tailrec def loop(index0: Z, keyIndex: Z, m0: Map[K, V]): Map[K, V] =
-          if (index0.isZero || keyIndex >= evk.size) m0
-          else {
-            val (index1, valIndex) = index0 /% evo.size
-            evo.get(valIndex).get match {
-              case Some(v) =>
-                val k = evk.get(keyIndex).get
-                loop(index1, keyIndex + 1, m0.updated(k, v))
-              case None =>
-                loop(index1, keyIndex + 1, m0)
-            }
-          }
-        if (index >= size) None
-        else Some(loop(index, Z.zero, Map.empty))
-      }
-    }
-
+  implicit def ffmap[K, V](implicit evk: Finite[K], evv: Finite[V]): Finite[Map[K, V]] =
+    FFMap(evk, evv)
   implicit def ifmap[K, V](implicit evk: Infinite[K], evv: Finite[V]): Infinite[Map[K, V]] =
-    new Infinite[Map[K, V]] {
-      val evo: Finite[Option[V]] = foption(evv)
-      def apply(index: Z): Map[K, V] = {
-        @tailrec def loop(index0: Z, keyIndex: Z, m0: Map[K, V]): Map[K, V] =
-          if (index0.isZero) m0
-          else {
-            val (index1, valIndex) = index0 /% evo.size
-            evo.get(valIndex).get match {
-              case Some(v) =>
-                val k = evk(keyIndex)
-                loop(index1, keyIndex + 1, m0.updated(k, v))
-              case None =>
-                loop(index1, keyIndex + 1, m0)
-            }
-          }
-        loop(index, Z.zero, Map.empty)
-      }
-    }
-
+    IFMap(evk, evv)
+  implicit def fimap[K, V](implicit evk: Finite[K], evv: Infinite[V]): Infinite[Map[K, V]] =
+    FIMap(evk, evv)
   implicit def iimap[K, V](implicit evk: Infinite[K], evv: Infinite[V]): Infinite[Map[K, V]] =
-    new Infinite[Map[K, V]] {
-      val evo: Infinite[Option[V]] = ioption(evv)
-      def apply(index: Z): Map[K, V] = {
-        @tailrec def loop(index0: Z, keyIndex: Z, valIndex: Z, m0: Map[K, V]): Map[K, V] = {
-          def result: Map[K, V] =
-            evo(valIndex) match {
-              case Some(v) => m0.updated(evk(keyIndex), v)
-              case None => m0
-            }
-          if (index0.isZero) result
-          else if (index0.isEven) loop(index0 >> 1, keyIndex + 1, Z.zero, result)
-          else loop(index0 >> 1, keyIndex, valIndex + 1, m0)
-        }
-        loop(index, Z.zero, Z.zero, Map.empty)
-      }
-    }
+    IIMap(evk, evv)
 
   implicit def ffunction[A, B](implicit ca: Finite[A], ia: Indexable[A], cb: Finite[B]): Finite[A => B] =
-    new Finite[A => B] {
-      // NOTE: powOf() will crash for unsupportedly-large cardinalities
-      val size: Z = powOf(cb.size, ca.size)
-      def get(index: Z): Option[A => B] =
-        if (index >= size) None
-        else {
-          val f = Functional.function1(index, cb.size)
-          Some((a: A) => cb.get(f(ia.index(a))).get)
-        }
-    }
-
+    FFFunction(ca, ia, cb)
   implicit def ifunction[A, B](implicit ca: Infinite[A], ia: Indexable[A], cb: Finite[B]): Infinite[A => B] =
-    new Infinite[A => B] {
-      def apply(index: Z): A => B = {
-        val f = Functional.function1(index, cb.size)
-        (a: A) => cb.get(f(ia.index(a))).get
-      }
-    }
-
-  implicit def iiunction[A, B](implicit ca: Infinite[A], ia: Indexable[A], cb: Infinite[B]): Infinite[A => B] =
-    new Infinite[A => B] {
-      def apply(index: Z): A => B =
-        (a: A) => cb(Functional.infEvaluate1(index, ia.index(a)))
-    }
+    IFFunction(ca, ia, cb)
+  implicit def xiunction[A, B](implicit ia: Indexable[A], cb: Infinite[B]): Infinite[A => B] =
+    XIFunction(ia, cb)
 
   // this only works if the A type is finite. A types that are
   // infinite require a different strategy than the lexicographic
   // order (since you can never "finish" the length=1 lists you have
   // to interleave larger ones).
-  implicit def lexicographicList[A](implicit ev: Finite[A]): Infinite[List[A]] =
-    new Infinite[List[A]] {
-      def apply(index: Z): List[A] = {
-        val w = ev.size
-        @tailrec def loop(len: Int, i: Z): (Int, Z) = {
-          val j = i + ev.size.pow(len)
-          if (j <= index) loop(len + 1, j) else (len, index - i)
-        }
-        val (len, i) = loop(0, Z.zero)
-        @tailrec def build(len: Int, i: Z, as: List[A]): List[A] =
-          if (len <= 0) as
-          else {
-            val (j, k) = i /% ev.size
-            build(len - 1, j, ev.get(k).get :: as)
-          }
-        build(len, i, Nil)
-      }
-    }
 
+  implicit def lexicographicList[A](implicit ev: Finite[A]): Infinite[List[A]] =
+    LexicographicList(ev)
   implicit def lexicographicVector[A](implicit ev: Finite[A]): Infinite[Vector[A]] =
-    lexicographicList(ev).translate(_.toVector)
+    LexicographicList(ev).translate(_.toVector)
+  implicit def lexicographicStream[A](implicit ev: Finite[A]): Infinite[Stream[A]] =
+    LexicographicList(ev).translate(_.toStream)
+  implicit def lexicographicArray[A](implicit ev: Finite[A], ct: ClassTag[A]): Infinite[Array[A]] =
+    LexicographicList(ev).translate(_.toArray)
+
+  implicit def codedList[A](implicit ev: Infinite[A]): Infinite[List[A]] =
+    CodedList(ev)
+  implicit def codedVector[A](implicit ev: Infinite[A]): Infinite[Vector[A]] =
+    CodedList(ev).translate(_.toVector)
+  implicit def codedStream[A](implicit ev: Infinite[A]): Infinite[Stream[A]] =
+    CodedList(ev).translate(_.toStream)
+  implicit def codedArray[A](implicit ev: Infinite[A], ct: ClassTag[A]): Infinite[Array[A]] =
+    CodedList(ev).translate(_.toArray)
 
   // quite ugly
   implicit val cstring: Infinite[String] =
-    lexicographicList[Char].translate(_.mkString)
+    LexicographicList(cchar).translate(_.mkString)
 
   // helpful class for defining finite instances derived from integer ranges.
-  case class Integers[A](size: Z, f: Z => A) extends Finite[A] {
+  case class FromRange[A](size: Z, f: Z => A) extends Finite[A] {
     def get(index: Z): Option[A] =
       if (index >= size) None
       else if (index >= 0) Some(f(index))

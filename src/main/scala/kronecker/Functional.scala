@@ -164,6 +164,7 @@ object Functional {
   def infEvaluate15(index: Z, input: Z): Z =
     infEvaluate(index, input, 4)
 
+
   /**
    * Given an `index` identifying a function, and an `input` to that
    * function, determine the function's output.
@@ -184,30 +185,43 @@ object Functional {
    * and 0111 would both represent 3).
    */
   def infEvaluate(index: Z, input: Z, k: Int): Z = {
-
     require(k <= 31) //fixme
     val mask = (1 << k) - 1
 
-    @tailrec def loop(index0: Z, argIndex: Z, mult: Z, counter: Z, carry: Boolean): Z = {
+    @tailrec def loop(index0: Z, argIndex: Z): Z =
+      if (argIndex == input) readCoding(index0, mask, k)._2
+      else if (index0.isZero) Z.zero
+      else loop(readCoding(index0, mask, k)._1, argIndex + 1)
 
-      def resolve: Z = if (carry) mult + counter else counter
+    loop(index, Z.zero)
+  }
+
+  /**
+   * Read an unbounded natural number in the given byte coding.
+   *
+   * The return value is `(valueRead, indexAfterReading)`.
+   */
+  def readCoding(index: Z, mask: Int, k: Int): (Z, Z) = {
+    @tailrec def loop(index0: Z, mult: Z, counter0: Z, carry0: Boolean): (Z, Z) = {
+
+      def resolve: Z =
+        if (carry0) mult + counter0 else counter0
 
       if (index0.isZero) {
-        if (argIndex == input) resolve else Z.zero
+        (resolve, index0)
       } else {
         val bits = (index0 & mask).toInt
         val index1 = index0 >> k
         if (bits == 0) {
-          if (argIndex == input) resolve
-          else loop(index1, argIndex + 1, Z.one, Z.zero, false)
+          (resolve, index1)
         } else {
           val n = if (bits == mask) 0 else bits
-          val counter1 = if (n > 0) counter + (mult * n) else counter
-          val carry1 = n == 0 || (carry && n == 1)
-          loop(index1, argIndex, mult * mask, counter1, carry1)
+          val counter1 = if (n > 0) counter0 + (mult * n) else counter0
+          val carry1 = n == 0 || (carry0 && n == 1)
+          loop(index1, mult * mask, counter1, carry1)
         }
       }
     }
-    loop(index, Z.zero, Z.one, Z.zero, false)
+    loop(index, Z.one, Z.zero, false)
   }
 }
