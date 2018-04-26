@@ -3,11 +3,9 @@ package instances
 
 import scala.annotation.tailrec
 
-import Countable.{Finite, Infinite}
-
 // Set(), Set(0), Set(1), Set(0, 1), Set(2), Set(0, 2), Set(1, 2),
 // Set(0, 1, 2), Set(3), ...
-case class FSet[A](ev: Finite[A]) extends Finite[Set[A]] {
+class CFSet[A](ev: Countable.Finite[A]) extends Countable.Finite[Set[A]] {
   // NOTE: powOf() will crash for unsupportedly-large cardinalities
   val size: Z = powOf(Z(2), ev.size)
 
@@ -25,7 +23,7 @@ case class FSet[A](ev: Finite[A]) extends Finite[Set[A]] {
 
 // Set(), Set(0), Set(1), Set(0, 1), Set(2), Set(0, 2), Set(1, 2),
 // Set(0, 1, 2), Set(3), ...
-case class ISet[A](ev: Infinite[A]) extends Infinite[Set[A]] {
+class CISet[A](ev: Countable.Infinite[A]) extends Countable.Infinite[Set[A]] {
   def apply(index: Z): Set[A] = {
     @tailrec def loop(rem: Z, index: Z, s0: Set[A]): Set[A] =
       if (rem.isZero) s0
@@ -33,4 +31,20 @@ case class ISet[A](ev: Infinite[A]) extends Infinite[Set[A]] {
       else loop(rem >> 1, index + 1, s0)
     loop(index, Z.zero, Set.empty)
   }
+}
+
+class NFSet[A](ev: Indexable.Finite[A]) extends CFSet(ev) with Indexable.Finite[Set[A]] {
+  def index(set: Set[A]): Z =
+    set.foldLeft(Z.zero) { (n, a) =>
+      val i = ev.index(a)
+      n | leftShift(Z.one, i)
+    }
+}
+
+class NISet[A](ev: Indexable.Infinite[A]) extends CISet(ev) with Indexable.Infinite[Set[A]] {
+  def index(set: Set[A]): Z =
+    set.foldLeft(Z.zero) { (n, a) =>
+      val i = ev.index(a)
+      n | leftShift(Z.one, i)
+    }
 }

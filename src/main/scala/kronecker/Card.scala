@@ -56,8 +56,8 @@ object Card {
     require(size >= 0)
   }
 
-  val Zero = Finite(Z.zero)
-  val One = Finite(Z.one)
+  val Zero: Card = Finite(Z.zero)
+  val One: Card = Finite(Z.one)
 
   implicit object CardAlgebra extends Order[Card] with Rig[Card] {
     def compare(x: Card, y: Card): Int = x compare y

@@ -204,16 +204,13 @@ object Functional {
   def readCoding(index: Z, mask: Int, k: Int): (Z, Z) = {
     @tailrec def loop(index0: Z, mult: Z, counter0: Z, carry0: Boolean): (Z, Z) = {
 
-      def resolve: Z =
-        if (carry0) mult + counter0 else counter0
-
       if (index0.isZero) {
-        (resolve, index0)
+        (counter0, index0) // don't carry on the "final value"
       } else {
         val bits = (index0 & mask).toInt
         val index1 = index0 >> k
         if (bits == 0) {
-          (resolve, index1)
+          (if (carry0) mult + counter0 else counter0, index1)
         } else {
           val n = if (bits == mask) 0 else bits
           val counter1 = if (n > 0) counter0 + (mult * n) else counter0
@@ -223,5 +220,72 @@ object Functional {
       }
     }
     loop(index, Z.one, Z.zero, false)
+  }
+
+  /**
+   * Write the given value as coded number.
+   *
+   * - value: the value to be written
+   * - mult: the multiplier (offset) to write this value at.
+   *         should be divisible by mask.
+   * - mask: the mask to use.
+   * - k: the width of the shift and mask to use.
+   *
+   * Returns `(codedValue, newMult)`
+   */
+  def writeCoding(values: List[Z], k: Int): Z = {
+    val mask = (1 << k) - 1
+    val zmask = Z(mask)
+
+    // returns (shift, output)
+    def writeValue(value: Z, shift: Int, output: Z, isLast: Boolean): (Int, Z) = {
+      //println(s"writeValue($value, $shift, $output, $isLast)")
+
+      @tailrec def recur(value0: Z, shift0: Int, output0: Z, carry0: Boolean): (Int, Z) = {
+        //println(s"recur($value0, $shift0, $output0, $carry0)")
+        if (value0.isZero) {
+          require(!carry0)
+          (shift0, output0)
+        } else {
+          //val bits = (value0 & mask).toInt
+          //val value1 = value0 >> k
+          val bits = (value0 % mask).toInt
+          val value1 = value0 / mask
+
+          val (add1, carry1) =
+            if (value1.isZero) {
+              require(bits != 0)
+              if (carry0 && bits == 1 && !isLast) (Z.zero, false)
+              else (Z(bits), false)
+            } else {
+              if (bits == 0) (zmask, true)
+              else if (bits == 1) (Z(1), carry0)
+              else (Z(bits), false)
+            }
+
+          recur(value1, shift0 + k, output0 | (add1 << shift0), carry1)
+        }
+      }
+
+      if (!value.isZero) recur(value, shift, output, false)
+      else if (isLast) (shift + k, output | (mask << shift))
+      else (shift + k, output)
+    }
+
+    @tailrec def loop(ns: List[Z], shift0: Int, output0: Z): Z =
+      ns match {
+        case Nil =>
+          output0
+        case n :: ns =>
+          val isLast = ns.isEmpty
+          if (n.isZero && !isLast) {
+            loop(ns, shift0 + k, output0)
+          } else {
+            val (shift1, output1) = writeValue(n, shift0, output0, isLast)
+            loop(ns, shift1 + k, output1)
+          }
+      }
+
+    loop(values, 0, Z.zero)
   }
 }

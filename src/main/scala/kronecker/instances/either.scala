@@ -63,7 +63,7 @@ class NIIEither[A, B](
   def index(e: Either[A, B]): Z =
     e match {
       case Left(a) => eva.index(a) * 2
-      case Right(b) => evb.index(b) + 2 + 1
+      case Right(b) => evb.index(b) * 2 + 1
     }
 }
 

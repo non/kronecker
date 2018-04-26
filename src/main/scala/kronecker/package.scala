@@ -1,3 +1,5 @@
+import scala.annotation.tailrec
+
 package object kronecker {
   type N = spire.math.Natural
   val N = spire.math.Natural
@@ -19,4 +21,8 @@ package object kronecker {
     else if (base.isOne)          Z.one
     else if (exponent.isValidInt) base.pow(exponent.toInt)
     else sys.error(s"$base^$exponent is too large")
+
+  @tailrec def leftShift(n: Z, k: Z): Z =
+    if (k.isValidInt) n << k.toInt
+    else leftShift(n << Int.MaxValue, k - Int.MaxValue)
 }

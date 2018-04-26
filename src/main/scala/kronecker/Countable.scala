@@ -73,8 +73,6 @@ sealed trait Countable[A] { self =>
   def translate[B](f: A => B): Countable[B]
 }
 
-//import Countable.{Finite, Infinite}
-
 object Countable extends Countable0 {
 
   def apply[A](implicit ev: Countable[A]): Countable[A] = ev
@@ -220,10 +218,14 @@ object Countable extends Countable0 {
       case Right(a) => Left(a)
     })
 
-  implicit def fset[A](implicit ev: Countable.Finite[A]): Countable.Finite[Set[A]] =
-    FSet(ev)
-  implicit def iset[A](implicit ev: Infinite[A]): Infinite[Set[A]] =
-    ISet(ev)
+  implicit def cfset[A](implicit ev: Countable.Finite[A]): Countable.Finite[Set[A]] =
+    new CFSet(ev)
+  implicit def ciset[A](implicit ev: Countable.Infinite[A]): Countable.Infinite[Set[A]] =
+    new CISet(ev)
+  implicit def nfset[A](implicit ev: Indexable.Finite[A]): Indexable.Finite[Set[A]] =
+    new NFSet(ev)
+  implicit def niset[A](implicit ev: Indexable.Infinite[A]): Indexable.Infinite[Set[A]] =
+    new NISet(ev)
 
   implicit def ffmap[K, V](implicit evk: Finite[K], evv: Finite[V]): Finite[Map[K, V]] =
     FFMap(evk, evv)
@@ -247,26 +249,35 @@ object Countable extends Countable0 {
   // to interleave larger ones).
 
   implicit def lexicographicList[A](implicit ev: Finite[A]): Infinite[List[A]] =
-    LexicographicList(ev)
+    new LexicographicList(ev)
   implicit def lexicographicVector[A](implicit ev: Finite[A]): Infinite[Vector[A]] =
-    LexicographicList(ev).translate(_.toVector)
+    new LexicographicList(ev).translate(_.toVector)
   implicit def lexicographicStream[A](implicit ev: Finite[A]): Infinite[Stream[A]] =
-    LexicographicList(ev).translate(_.toStream)
+    new LexicographicList(ev).translate(_.toStream)
   implicit def lexicographicArray[A](implicit ev: Finite[A], ct: ClassTag[A]): Infinite[Array[A]] =
-    LexicographicList(ev).translate(_.toArray)
+    new LexicographicList(ev).translate(_.toArray)
 
   implicit def codedList[A](implicit ev: Infinite[A]): Infinite[List[A]] =
-    CodedList(ev)
+    new CodedList(ev)
   implicit def codedVector[A](implicit ev: Infinite[A]): Infinite[Vector[A]] =
-    CodedList(ev).translate(_.toVector)
+    new CodedList(ev).translate(_.toVector)
   implicit def codedStream[A](implicit ev: Infinite[A]): Infinite[Stream[A]] =
-    CodedList(ev).translate(_.toStream)
+    new CodedList(ev).translate(_.toStream)
   implicit def codedArray[A](implicit ev: Infinite[A], ct: ClassTag[A]): Infinite[Array[A]] =
-    CodedList(ev).translate(_.toArray)
+    new CodedList(ev).translate(_.toArray)
+
+  implicit def ncodedList[A](implicit ev: Indexable.Infinite[A]): Indexable.Infinite[List[A]] =
+    new NCodedList(ev)
+  implicit def ncodedVector[A](implicit ev: Indexable.Infinite[A]): Indexable.Infinite[Vector[A]] =
+    new NCodedList(ev).imap(_.toVector)(_.toList)
+  implicit def ncodedStream[A](implicit ev: Indexable.Infinite[A]): Indexable.Infinite[Stream[A]] =
+    new NCodedList(ev).imap(_.toStream)(_.toList)
+  implicit def ncodedArray[A](implicit ev: Indexable.Infinite[A], ct: ClassTag[A]): Indexable.Infinite[Array[A]] =
+    new NCodedList(ev).imap(_.toArray)(_.toList)
 
   // quite ugly
   implicit val cstring: Infinite[String] =
-    LexicographicList(cchar).translate(_.mkString)
+    new LexicographicList(cchar).translate(_.mkString)
 }
 
 abstract class Countable0 extends Countable1 {
@@ -344,6 +355,10 @@ sealed trait Indexable[A] extends Countable[A] { self =>
 }
 
 object Indexable {
+
+  def apply[A](implicit ev: Indexable[A]): Indexable[A] = ev
+  def finite[A](implicit ev: Indexable.Finite[A]): Indexable.Finite[A] = ev
+  def infinite[A](implicit ev: Indexable.Infinite[A]): Indexable.Infinite[A] = ev
 
   trait Finite[A] extends Indexable[A] with Countable.Finite[A] { self =>
 

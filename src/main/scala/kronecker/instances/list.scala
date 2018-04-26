@@ -3,13 +3,11 @@ package instances
 
 import scala.annotation.tailrec
 
-import Countable.{Finite, Infinite}
-
 // this only works if the A type is finite. A types that are
 // infinite require a different strategy than the lexicographic
 // order (since you can never "finish" the length=1 lists you have
 // to interleave larger ones).
-case class LexicographicList[A](ev: Finite[A]) extends Infinite[List[A]] {
+class LexicographicList[A](ev: Countable.Finite[A]) extends Countable.Infinite[List[A]] {
   def apply(index: Z): List[A] = {
     val w = ev.size
     @tailrec def loop(len: Int, i: Z): (Int, Z) = {
@@ -28,9 +26,9 @@ case class LexicographicList[A](ev: Finite[A]) extends Infinite[List[A]] {
 }
 
 
-case class CodedList[A](ev: Infinite[A]) extends Infinite[List[A]] {
+class CodedList[A](ev: Countable.Infinite[A]) extends Countable.Infinite[List[A]] {
+  val k = 2
   def apply(index: Z): List[A] = {
-    val k = 2
     val mask = (1 << k) - 1
     val bldr = List.newBuilder[A]
     var n = index
@@ -41,4 +39,9 @@ case class CodedList[A](ev: Infinite[A]) extends Infinite[List[A]] {
     }
     bldr.result
   }
+}
+
+class NCodedList[A](ev: Indexable.Infinite[A]) extends CodedList(ev) with Indexable.Infinite[List[A]] {
+  def index(lst: List[A]): Z =
+    Functional.writeCoding(lst.map(ev.index), k)
 }
