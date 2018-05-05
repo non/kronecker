@@ -49,19 +49,25 @@ case class IFMap[K, V](evk: Infinite[K], evv: Finite[V]) extends Infinite[Map[K,
 case class FIMap[K, V](evk: Finite[K], evv: Infinite[V]) extends Infinite[Map[K, V]] {
   val evo: Infinite[Option[V]] = new CIOption(evv)
 
+  val lastKey = evk.size - 1
+
   def apply(index: Z): Map[K, V] = {
     val k = 4
     val mask = (1 << k) - 1
     @tailrec def loop(index0: Z, keyIndex: Z, m0: Map[K, V]): Map[K, V] =
-      if (index0.isZero || !evk.cardinality.contains(keyIndex)) m0
-      else {
-        val (valIndex, index1) = Functional.readCoding(index0, mask, k)
-        evo(valIndex) match {
-          case Some(v) =>
-            loop(index1, keyIndex + 1, m0.updated(evk.get(keyIndex).get, v))
-          case None =>
-            loop(index1, keyIndex + 1, m0)
+      if (index0.isZero) {
+        m0
+      } else if (keyIndex == lastKey) {
+        evo(index0) match {
+          case Some(v) => m0.updated(evk.get(keyIndex).get, v)
+          case None => m0
         }
+      } else {
+        val (valIndex, index1) = Functional.readCoding(index0, mask, k)
+        loop(index1, keyIndex + 1, evo(valIndex) match {
+          case Some(v) => m0.updated(evk.get(keyIndex).get, v)
+          case None => m0
+        })
       }
     loop(index, Z.zero, Map.empty)
   }
@@ -74,8 +80,7 @@ case class IIMap[K, V](evk: Infinite[K], evv: Infinite[V]) extends Infinite[Map[
     val k = 4
     val mask = (1 << k) - 1
     @tailrec def loop(index0: Z, keyIndex: Z, m0: Map[K, V]): Map[K, V] =
-      if (index0.isZero) m0
-      else {
+      if (index0.isZero) m0 else {
         val (valIndex, index1) = Functional.readCoding(index0, mask, k)
         evo(valIndex) match {
           case Some(v) =>

@@ -20,10 +20,10 @@ trait CountableLaws[A] { self: Properties =>
       card.contains(i) == ev.get(i).isDefined
     }
 
-  property("get(i) = get(j) iff i = j") =
+  property("get(i) = get(j) iff i = j") = {
     forAll { (i1: Z, i2: Z) =>
       val (o1, o2) = (ev.get(i1), ev.get(i2))
-      (card.contains(i1), card.contains(i2)) match {
+      val res = (card.contains(i1), card.contains(i2)) match {
         case (true, true) =>
           (o1 == o2) == (i1 == i2)
         case (true, false) =>
@@ -33,7 +33,10 @@ trait CountableLaws[A] { self: Properties =>
         case (false, false) =>
           o1 == None && o2 == None
       }
+      if (!res) println(s"i1=$i1 i2=$i2 o1=$o1 o2=$o2 res=$res")
+      res
     }
+  }
 }
 
 trait IndexableLaws[A] extends CountableLaws[A] { self: Properties =>
@@ -41,12 +44,26 @@ trait IndexableLaws[A] extends CountableLaws[A] { self: Properties =>
   def ev: Indexable[A]
   implicit def arb: Arbitrary[A]
 
+  def repr(n0: Z): String = {
+    if (n0 == 0) return "0"
+    var s = ""
+    var n = n0
+    while (n != 0) {
+      val (q, r) = n /% 4
+      s = r.toString + s
+      n = q
+    }
+    s
+  }
+
   property("sanity check") = {
-    val ns = (0 until 20)
-      .map { i => val o = ev.get(Z(i)); (i, o.map(a => (a, ev.index(a)))) }
-      .flatMap { case (i, o) => o.map { case (a, n) => (i, a, n) } }
+    val ns = (0 to 100)
+      .flatMap { i => ev.get(Z(i)).map(a => (i, a, ev.index(a))) }
       .filter { case (i, a, n) => i != n }
-      .map { case (i, a, n) => (i, a, n, ev.get(n)) }
+      .map { case (i, a, n) =>
+        val a2 = ev.get(n).get
+        s"i=$i (${repr(i)}) a=$a -> i2=$n (${repr(n)}) a2=$a2"
+      }
       .toList
     (ns.isEmpty: Boolean) :| s"$ns should be empty"
   }
@@ -91,7 +108,7 @@ object FOptionBooleanLaws extends IndexableTests[Option[Boolean]]
 object FOptionIntLaws extends IndexableTests[Option[Int]]
 object FEitherUnitUnit extends IndexableTests[Either[Unit, Unit]]
 object FEitherIntByte extends IndexableTests[Either[Int, Byte]]
-object FSetByte extends CountableTests[Set[Byte]]
+object FSetByte extends IndexableTests[Set[Byte]]
 object FTupleBooleanBoolean extends CountableTests[(Boolean, Boolean)]
 object FTupleLongIntShortByte extends CountableTests[(Long, Int, Short, Byte)]
 object FHListBBBB extends CountableTests[Byte :: Byte :: Byte :: Byte :: HNil]
@@ -106,3 +123,11 @@ object IListInt extends CountableTests[List[Int]]
 object IListZ extends IndexableTests[List[Z]]
 object ITupleZZZ extends CountableTests[(Z, Z, Z)]
 object ITupleZByteByte extends CountableTests[(Z, Byte, Byte)]
+
+object FFMapBB extends CountableTests[Map[Byte, Byte]]
+object FIMapBS extends CountableTests[Map[Byte, String]]
+object IFMapSB extends CountableTests[Map[String, Byte]]
+object IIMapSS extends CountableTests[Map[String, String]]
+
+object FFFunctionBB extends CountableTests[Byte => Byte]
+object IFFunctionSB extends CountableTests[Z => Byte]

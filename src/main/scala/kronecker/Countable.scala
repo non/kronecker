@@ -236,12 +236,12 @@ object Countable extends Countable0 {
   implicit def iimap[K, V](implicit evk: Infinite[K], evv: Infinite[V]): Infinite[Map[K, V]] =
     IIMap(evk, evv)
 
-  implicit def ffunction[A, B](implicit ca: Finite[A], ia: Indexable[A], cb: Finite[B]): Finite[A => B] =
+  implicit def fffunction[A, B](implicit ca: Finite[A], ia: Indexable[A], cb: Finite[B]): Finite[A => B] =
     FFFunction(ca, ia, cb)
-  implicit def ifunction[A, B](implicit ca: Infinite[A], ia: Indexable[A], cb: Finite[B]): Infinite[A => B] =
+  implicit def iffunction[A, B](implicit ca: Infinite[A], ia: Indexable[A], cb: Finite[B]): Infinite[A => B] =
     IFFunction(ca, ia, cb)
-  implicit def xiunction[A, B](implicit ia: Indexable[A], cb: Infinite[B]): Infinite[A => B] =
-    XIFunction(ia, cb)
+  // implicit def xifunction[A, B](implicit ia: Indexable[A], cb: Infinite[B]): Infinite[A => B] =
+  //   XIFunction(ia, cb)
 
   // this only works if the A type is finite. A types that are
   // infinite require a different strategy than the lexicographic
