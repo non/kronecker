@@ -9,19 +9,28 @@ import scala.annotation.tailrec
 // diagonalize between enumerating lists of various lengths).
 class LexicographicList[A](ev: Countable.Finite[A]) extends Countable.Infinite[List[A]] {
   def apply(index: Z): List[A] = {
-    val w = ev.size
-    @tailrec def loop(len: Int, i: Z): (Int, Z) = {
-      val j = i + ev.size.pow(len)
-      if (j <= index) loop(len + 1, j) else (len, index - i)
+    val bldr = List.newBuilder[A]
+    var curr = index
+    while (!curr.isZero) {
+      val (q, r) = (curr - 1) /% ev.size
+      bldr += ev.get(r).get
+      curr = q
     }
-    val (len, i) = loop(0, Z.zero)
-    @tailrec def build(len: Int, i: Z, as: List[A]): List[A] =
-      if (len <= 0) as
-      else {
-        val (j, k) = i /% ev.size
-        build(len - 1, j, ev.get(k).get :: as)
+    bldr.result
+  }
+}
+
+class NLexicographicList[A](ev: Indexable.Finite[A]) extends LexicographicList(ev) with Indexable.Infinite[List[A]] {
+  def index(lst: List[A]): Z = {
+    def loop(as: List[A], acc: Z, mult: Z): Z =
+      as match {
+        case head :: tail =>
+          loop(tail, acc + (ev.index(head) + 1) * mult, mult * ev.size)
+        case Nil =>
+          acc
       }
-    build(len, i, Nil)
+    if (lst.isEmpty) Z.zero
+    else loop(lst, Z.zero, Z.one)
   }
 }
 

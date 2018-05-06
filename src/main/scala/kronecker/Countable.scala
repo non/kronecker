@@ -257,6 +257,15 @@ object Countable extends Countable0 {
   implicit def lexicographicArray[A](implicit ev: Finite[A], ct: ClassTag[A]): Infinite[Array[A]] =
     new LexicographicList(ev).translate(_.toArray)
 
+  implicit def nlexicographicList[A](implicit ev: Indexable.Finite[A]): Indexable.Infinite[List[A]] =
+    new NLexicographicList(ev)
+  implicit def nlexicographicVector[A](implicit ev: Indexable.Finite[A]): Indexable.Infinite[Vector[A]] =
+    new NLexicographicList(ev).imap(_.toVector)(_.toList)
+  implicit def nlexicographicStream[A](implicit ev: Indexable.Finite[A]): Indexable.Infinite[Stream[A]] =
+    new NLexicographicList(ev).imap(_.toStream)(_.toList)
+  implicit def nlexicographicArray[A](implicit ev: Indexable.Finite[A], ct: ClassTag[A]): Indexable.Infinite[Array[A]] =
+    new NLexicographicList(ev).imap(_.toArray)(_.toList)
+
   implicit def codedList[A](implicit ev: Infinite[A]): Infinite[List[A]] =
     new CodedList(ev)
   implicit def codedVector[A](implicit ev: Infinite[A]): Infinite[Vector[A]] =
@@ -276,8 +285,8 @@ object Countable extends Countable0 {
     new NCodedList(ev).imap(_.toArray)(_.toList)
 
   // quite ugly
-  implicit val cstring: Infinite[String] =
-    new LexicographicList(cchar).translate(_.mkString)
+  implicit val cstring: Indexable.Infinite[String] =
+    new NLexicographicList(cchar).imap(_.mkString)(_.toList)
 }
 
 abstract class Countable0 extends Countable1 {

@@ -75,12 +75,20 @@ trait IndexableLaws[A] extends CountableLaws[A] { self: Properties =>
 
   property("get(index(a)) = Some(a)") =
     forAll { (a: A) =>
-      ev.get(ev.index(a)) == Some(a)
+      val i = ev.index(a)
+      val o = ev.get(i)
+      val ok = o == Option(a)
+      if (!ok) println(s"a=$a i=$i o=$o")
+      ok
     }
 
   property("index(a1) = index(a2) iff a1 = a2") =
     forAll { (a1: A, a2: A) =>
-      (ev.index(a1) == ev.index(a2)) == (a1 == a2)
+      val i1 = ev.index(a1)
+      val i2 = ev.index(a2)
+      val ok = (i1 == i2) == (a1 == a2)
+      if (!ok) println(s"a1=$a1, a2=$a2, i1=$i1, i2=$i2")
+      ok
     }
 }
 
@@ -101,7 +109,7 @@ object CLongLaws extends IndexableTests[Long]
 // object CFloatLaws extends IndexableTests[Float] // NaN != NaN
 // object CDoubleLaws extends IndexableTests[Double] // NaN != NaN
 object CZLaws extends IndexableTests[Z]
-object CStringLaws extends CountableTests[String]
+object CStringLaws extends IndexableTests[String]
 
 object FOptionUnitLaws extends IndexableTests[Option[Unit]]
 object FOptionBooleanLaws extends IndexableTests[Option[Boolean]]
@@ -113,16 +121,20 @@ object FTupleBooleanBoolean extends CountableTests[(Boolean, Boolean)]
 object FTupleLongIntShortByte extends CountableTests[(Long, Int, Short, Byte)]
 object FHListBBBB extends CountableTests[Byte :: Byte :: Byte :: Byte :: HNil]
 
-object IOptionStringLaws extends CountableTests[Option[String]]
+object IOptionStringLaws extends IndexableTests[Option[String]]
 object IEitherByteZ extends IndexableTests[Either[Byte, Z]]
 object IEitherZByte extends IndexableTests[Either[Z, Byte]]
 object IEitherZZ extends IndexableTests[Either[Z, Z]]
 object ISetZ extends CountableTests[Set[Z]]
-object IListByte extends CountableTests[List[Byte]]
-object IListInt extends CountableTests[List[Int]]
+object IListBoolean extends IndexableTests[List[Boolean]]
+object IListByte extends IndexableTests[List[Byte]]
+object IListInt extends IndexableTests[List[Int]]
 object IListZ extends IndexableTests[List[Z]]
 object ITupleZZZ extends CountableTests[(Z, Z, Z)]
 object ITupleZByteByte extends CountableTests[(Z, Byte, Byte)]
+
+//object ISetZ extends IndexableTests[Set[Z]] // arithmetic overflow
+//object IListUnit extends IndexableTests[List[Unit]] // ends up being too intensive
 
 object FFMapBB extends CountableTests[Map[Byte, Byte]]
 object FIMapBS extends CountableTests[Map[Byte, String]]
