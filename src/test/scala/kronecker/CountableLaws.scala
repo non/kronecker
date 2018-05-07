@@ -39,10 +39,9 @@ trait CountableLaws[A] { self: Properties =>
   }
 }
 
-trait IndexableLaws[A] extends CountableLaws[A] { self: Properties =>
+trait WeakIndexableLaws[A] extends CountableLaws[A] { self: Properties =>
 
   def ev: Indexable[A]
-  implicit def arb: Arbitrary[A]
 
   def repr(n0: Z): String = {
     if (n0 == 0) return "0"
@@ -67,6 +66,17 @@ trait IndexableLaws[A] extends CountableLaws[A] { self: Properties =>
       .toList
     (ns.isEmpty: Boolean) :| s"$ns should be empty"
   }
+
+
+  property("get(i).forall(index(_) == i)") =
+    forAll { (i: Z) =>
+      ev.get(i).forall(a => ev.index(a) == i)
+    }
+}
+
+trait StrongIndexableLaws[A] extends WeakIndexableLaws[A] { self: Properties =>
+
+  implicit def arb: Arbitrary[A]
 
   property("0 <= index(a) < cardinality") =
     forAll { (a: A) =>
@@ -95,44 +105,47 @@ trait IndexableLaws[A] extends CountableLaws[A] { self: Properties =>
 abstract class CountableTests[A](implicit val ev: Countable[A], val tt: TypeTag[A])
     extends Properties(s"CountableTests[${tt.tpe}]") with CountableLaws[A]
 
-abstract class IndexableTests[A](implicit val ev: Indexable[A], val arb: Arbitrary[A], val tt: TypeTag[A])
-    extends Properties(s"IndexableTests[${tt.tpe}]") with IndexableLaws[A]
+abstract class WeakIndexableTests[A](implicit val ev: Indexable[A], val tt: TypeTag[A])
+    extends Properties(s"WeakIndexableTests[${tt.tpe}]") with WeakIndexableLaws[A]
+
+abstract class StrongIndexableTests[A](implicit val ev: Indexable[A], val arb: Arbitrary[A], val tt: TypeTag[A])
+    extends Properties(s"StrongIndexableTests[${tt.tpe}]") with StrongIndexableLaws[A]
 
 object CNothingLaws extends CountableTests[Nothing]
-object CUnitLaws extends IndexableTests[Unit]
-object CBooleanLaws extends IndexableTests[Boolean]
-object CByteLaws extends IndexableTests[Byte]
-object CShortLaws extends IndexableTests[Short]
-object CCharLaws extends IndexableTests[Char]
-object CIntLaws extends IndexableTests[Int]
-object CLongLaws extends IndexableTests[Long]
-// object CFloatLaws extends IndexableTests[Float] // NaN != NaN
-// object CDoubleLaws extends IndexableTests[Double] // NaN != NaN
-object CZLaws extends IndexableTests[Z]
-object CStringLaws extends IndexableTests[String]
+object CUnitLaws extends StrongIndexableTests[Unit]
+object CBooleanLaws extends StrongIndexableTests[Boolean]
+object CByteLaws extends StrongIndexableTests[Byte]
+object CShortLaws extends StrongIndexableTests[Short]
+object CCharLaws extends StrongIndexableTests[Char]
+object CIntLaws extends StrongIndexableTests[Int]
+object CLongLaws extends StrongIndexableTests[Long]
+// object CFloatLaws extends StrongIndexableTests[Float] // NaN != NaN
+// object CDoubleLaws extends StrongIndexableTests[Double] // NaN != NaN
+object CZLaws extends StrongIndexableTests[Z]
+object CStringLaws extends StrongIndexableTests[String]
 
-object FOptionUnitLaws extends IndexableTests[Option[Unit]]
-object FOptionBooleanLaws extends IndexableTests[Option[Boolean]]
-object FOptionIntLaws extends IndexableTests[Option[Int]]
-object FEitherUnitUnit extends IndexableTests[Either[Unit, Unit]]
-object FEitherIntByte extends IndexableTests[Either[Int, Byte]]
-object FSetByte extends IndexableTests[Set[Byte]]
+object FOptionUnitLaws extends StrongIndexableTests[Option[Unit]]
+object FOptionBooleanLaws extends StrongIndexableTests[Option[Boolean]]
+object FOptionIntLaws extends StrongIndexableTests[Option[Int]]
+object FEitherUnitUnit extends StrongIndexableTests[Either[Unit, Unit]]
+object FEitherIntByte extends StrongIndexableTests[Either[Int, Byte]]
+object FSetByte extends StrongIndexableTests[Set[Byte]]
 object FTupleBooleanBoolean extends CountableTests[(Boolean, Boolean)]
 object FTupleLongIntShortByte extends CountableTests[(Long, Int, Short, Byte)]
 object FHListBBBB extends CountableTests[Byte :: Byte :: Byte :: Byte :: HNil]
 
-object IOptionStringLaws extends IndexableTests[Option[String]]
-object IEitherByteZ extends IndexableTests[Either[Byte, Z]]
-object IEitherZByte extends IndexableTests[Either[Z, Byte]]
-object IEitherZZ extends IndexableTests[Either[Z, Z]]
-object ISetBoolean extends CountableTests[Set[Boolean]]
-object ISetByte extends CountableTests[Set[Byte]]
-object ISetInt extends CountableTests[Set[Int]]
-object ISetZ extends CountableTests[Set[Z]]
-object IListBoolean extends IndexableTests[List[Boolean]]
-object IListByte extends IndexableTests[List[Byte]]
-object IListInt extends IndexableTests[List[Int]]
-object IListZ extends IndexableTests[List[Z]]
+object IOptionStringLaws extends StrongIndexableTests[Option[String]]
+object IEitherByteZ extends StrongIndexableTests[Either[Byte, Z]]
+object IEitherZByte extends StrongIndexableTests[Either[Z, Byte]]
+object IEitherZZ extends StrongIndexableTests[Either[Z, Z]]
+object ISetBoolean extends StrongIndexableTests[Set[Boolean]]
+object ISetByte extends StrongIndexableTests[Set[Byte]]
+object ISetInt extends WeakIndexableTests[Set[Int]]
+object ISetZ extends WeakIndexableTests[Set[Z]]
+object IListBoolean extends StrongIndexableTests[List[Boolean]]
+object IListByte extends StrongIndexableTests[List[Byte]]
+object IListInt extends StrongIndexableTests[List[Int]]
+object IListZ extends StrongIndexableTests[List[Z]]
 object ITupleZZZ extends CountableTests[(Z, Z, Z)]
 object ITupleZByteByte extends CountableTests[(Z, Byte, Byte)]
 
