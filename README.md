@@ -73,7 +73,14 @@ The laws for `ev: Countable[A]` are as follows:
  * for every `a: A` there is an `i` such that `ev.get(i) = Some(a)`
  * `ev.get(i)` returns `Some(_)` for all `i < ev.cardinality`
  * `ev.get(i)` returns `None` for all `i >= ev.cardinality`
- * `ev.get(i) = Some(_) = ev.get(j)` if and only if `i == j`
+ * `ev.get(i) = Some(_) = ev.get(j)` if and only if `i = j`
+ 
+The laws for `ev: Indexable[A]` are the above laws and also:
+
+ * if `ev.get(i)` returns `Some(a)`, then `ev.index(a) = i`
+ * for all `a`, `0 <= index(a) < ev.cardinality`
+ * for all `a`, `get(index(a)) = Some(a)`
+ * `index(a1) = index(a2)` if and only if `a1 = a2`
  
 In all these laws `i` is assumed to be a non-negative, unbounded
 integer (i.e. a `spire.math.SafeLong`, aliased as `Z` in Kronecker).
