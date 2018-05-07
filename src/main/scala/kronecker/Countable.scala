@@ -22,14 +22,7 @@ import shapeless._
  * "miss" particular A values (and doesn't give a particular value
  * multiple indices). We have no way of verifying that an instance is
  * "valid" although the instances provided are believed to be valid.
- *
- * There are two types of Countable instances:
- *
- *   - Finite: contains a fixed set of values
- *   - Infinite: contains an unbounded set of values
- *
- * Only one instance or the other should be defined for any given type
- * (either a type is Finite, or Infinite, but not both).
+ * We use law-checking to try to catch broken implementations.
  */
 trait Countable[A] { self =>
 
@@ -144,10 +137,10 @@ object Countable extends Countable0 {
   // the current order is pretty much nonsense.
 
   implicit val cfloat: Indexable[Float] =
-    Indexable.FromRange(Z.one << 32, n => intBitsToFloat(n.toInt))(x => Z(floatToRawIntBits(x)))
+    cint.imap(intBitsToFloat)(floatToRawIntBits)
 
   implicit val cdouble: Indexable[Double] =
-    Indexable.FromRange(Z.one << 64, n => longBitsToDouble(n.toLong))(x => Z(doubleToRawLongBits(x)))
+    clong.imap(longBitsToDouble)(doubleToRawLongBits)
 
   implicit val cbigInt: Indexable[BigInt] =
     cz.imap(_.toBigInt)(Z(_))
@@ -155,47 +148,57 @@ object Countable extends Countable0 {
   implicit val cbigInteger: Indexable[java.math.BigInteger] =
     cz.imap(_.toBigInt.bigInteger)(Z(_))
 
+  // Option
   implicit def coption[A](implicit ev: Countable[A]): Countable[Option[A]] =
     new COption(ev)
   implicit def noption[A](implicit ev: Indexable[A]): Indexable[Option[A]] =
     new NOption(ev)
 
+  // Either
   implicit def ceither[A, B](implicit eva: Countable[A], evb: Countable[B]): Countable[Either[A, B]] =
     CEither(eva, evb)
   implicit def neither[A, B](implicit eva: Indexable[A], evb: Indexable[B]): Indexable[Either[A, B]] =
     NEither(eva, evb)
 
+  // Set
   implicit def cset[A](implicit ev: Countable[A]): Countable[Set[A]] =
     CSet(ev)
   implicit def nset[A](implicit ev: Indexable[A]): Indexable[Set[A]] =
     NSet(ev)
 
+  // Map
   implicit def cmap[K, V](implicit evk: Countable[K], evv: Countable[V]): Countable[Map[K, V]] =
     CMap(evk, evv)
 
-  implicit def cfunction[A, B](implicit eva: Indexable[A], evb: Countable[B]): Countable[A => B] =
-    CFunction(eva, evb)
+  // Function1
+  implicit def cfunction1[A, B](implicit eva: Indexable[A], evb: Countable[B]): Countable[A => B] =
+    CFunction1(eva, evb)
 
+  // List
   implicit def clist[A](implicit ev: Countable[A]): Countable[List[A]] =
     CList(ev)
   implicit def nlist[A](implicit ev: Indexable[A]): Indexable[List[A]] =
     NList(ev)
 
+  // Vector
   implicit def cvector[A](implicit ev: Countable[A]): Countable[Vector[A]] =
     CList(ev).translate(_.toVector)
   implicit def nvector[A](implicit ev: Indexable[A]): Indexable[Vector[A]] =
     NList(ev).imap(_.toVector)(_.toList)
 
+  // Stream
   implicit def cstream[A](implicit ev: Countable[A]): Countable[Stream[A]] =
     CList(ev).translate(_.toStream)
   implicit def nstream[A](implicit ev: Indexable[A]): Indexable[Stream[A]] =
     NList(ev).imap(_.toStream)(_.toList)
 
+  // Array
   implicit def carray[A: ClassTag](implicit ev: Countable[A]): Countable[Array[A]] =
     CList(ev).translate(_.toArray)
   implicit def narray[A: ClassTag](implicit ev: Indexable[A]): Indexable[Array[A]] =
     NList(ev).imap(_.toArray)(_.toList)
 
+  // String
   implicit val nstring: Indexable[String] =
     Indexable[List[Char]].imap(_.mkString)(_.toList)
 }
@@ -215,6 +218,20 @@ abstract class Countable0 {
     CCoproduct[C](evc)
 }
 
+/**
+ * Indexable[A] represents Countable[A] instances which are
+ * invertible.
+ *
+ * In theory any Countable[A] instance should be invertible (we should
+ * be able to reverse the procedure). In practice, some values we
+ * generate are too large or opaque to be able to reverse in general
+ * (for example functions). In other cases the user may not be able to
+ * take the time to define the instance.
+ *
+ * Indexable instances are very useful for testing the correctness of
+ * Countable instances, so users are encouraged to prefer Indexable
+ * where possible.
+ */
 trait Indexable[A] extends Countable[A] { self =>
   def index(a: A): Z
 

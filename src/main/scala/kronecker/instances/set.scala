@@ -49,14 +49,18 @@ object NSet {
       case Some(sz) => new NFSet(ev, sz)
       case None => new NISet(ev)
     }
+
+  @tailrec def leftShift(n: Z, k: Z): Z =
+    if (k.isValidInt) n << k.toInt
+    else leftShift(n << Int.MaxValue, k - Int.MaxValue)
 }
 
 class NFSet[A](ev: Indexable[A], sz: Z) extends CFSet(ev, sz) with Indexable[Set[A]] {
   def index(set: Set[A]): Z =
-    set.foldLeft(Z.zero)((n, a) => n | leftShift(Z.one, ev.index(a)))
+    set.foldLeft(Z.zero)((n, a) => n | NSet.leftShift(Z.one, ev.index(a)))
 }
 
 class NISet[A](ev: Indexable[A]) extends CISet(ev) with Indexable[Set[A]] {
   def index(set: Set[A]): Z =
-    set.foldLeft(Z.zero)((n, a) => n | leftShift(Z.one, ev.index(a)))
+    set.foldLeft(Z.zero)((n, a) => n | NSet.leftShift(Z.one, ev.index(a)))
 }

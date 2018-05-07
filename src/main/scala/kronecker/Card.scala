@@ -2,6 +2,19 @@ package kronecker
 
 import spire.algebra.{Order, Rig}
 
+/**
+ * Represents the cardinality of a set.
+ *
+ * Ideally, there would be two subtypes of Card: Finite and
+ * Infinite. However, in practice we often find ourselves dealing with
+ * cardinalities that are too large to compute but still finite
+ * (e.g. 2^(2^100)). To support this, we have Semifinite values which
+ * use a free representation (Plus, Times, and Pow) to represent
+ * values that aren't infinite but which are too large to compute.
+ *
+ * We treat these values as "effectively infinite" in the sense that
+ * we can't produce any index values large enough to exceed them.
+ */
 sealed trait Card { lhs =>
 
   import Card._
