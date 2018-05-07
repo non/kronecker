@@ -15,20 +15,6 @@ package object kronecker {
 
   def floor(x: R): Z = x.toRational.toSafeLong
 
-  // 2^6553400 has 1972770 decimal digits
-  val MaxExponent: Z = Z(6553400)
-
-  def xpowOf(base: Z, exponent: Z): Card =
-    if      (exponent.isZero)     Card.One
-    else if (base.isZero)         Card.Zero
-    else if (base.isOne)          Card.One
-    else {
-      // (2 ** k) approximates (base ** exponent)
-      val k = exponent * base.bitLength
-      if (k <= MaxExponent) Card.Finite(base.pow(exponent.toInt))
-      else Card.Infinite
-    }
-
   def powOf(base: Z, exponent: Z): Z =
     if      (exponent.isZero)     Z.one
     else if (base.isZero)         Z.zero
