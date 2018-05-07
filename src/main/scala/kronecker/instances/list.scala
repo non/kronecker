@@ -3,51 +3,51 @@ package instances
 
 import scala.annotation.tailrec
 
+object CList {
+  def apply[A](ev: Countable[A]): Countable[List[A]] =
+    ev.cardinality.value match {
+      case Some(sz) => new CFList(ev, sz)
+      case None => new CIList(ev)
+    }
+}
+
 // this only works if the A type is finite. A types that are infinite
 // require a different strategy than the lexicographic order (since
 // you can never finish enumerating the length=1 lists, you need to
 // diagonalize between enumerating lists of various lengths).
-class LexicographicList[A](ev: Countable.Finite[A]) extends Countable.Infinite[List[A]] {
-  def apply(index: Z): List[A] = {
-    val bldr = List.newBuilder[A]
-    var curr = index
-    while (!curr.isZero) {
-      val (q, r) = (curr - 1) /% ev.size
-      bldr += ev.get(r).get
-      curr = q
-    }
-    bldr.result
-  }
-}
-
-class NLexicographicList[A](ev: Indexable.Finite[A]) extends LexicographicList(ev) with Indexable.Infinite[List[A]] {
-  def index(lst: List[A]): Z = {
-    def loop(as: List[A], acc: Z, mult: Z): Z =
-      as match {
-        case head :: tail =>
-          loop(tail, acc + (ev.index(head) + 1) * mult, mult * ev.size)
-        case Nil =>
-          acc
+class CFList[A](ev: Countable[A], sz: Z) extends Countable[List[A]] {
+  def cardinality: Card =
+    Card.infinite
+  def get(index: Z): Option[List[A]] =
+    Some({
+      val bldr = List.newBuilder[A]
+      var curr = index
+      while (!curr.isZero) {
+        val (q, r) = (curr - 1) /% sz
+        bldr += ev.get(r).get
+        curr = q
       }
-    if (lst.isEmpty) Z.zero
-    else loop(lst, Z.zero, Z.one)
-  }
+      bldr.result
+    })
 }
 
-
-class CodedList[A](ev: Countable.Infinite[A]) extends Countable.Infinite[List[A]] {
+class CIList[A](ev: Countable[A]) extends Countable[List[A]] {
   val k = 4
   val mask = (1 << k) - 1
-  def apply(index: Z): List[A] = {
-    val bldr = List.newBuilder[A]
-    var n = index
-    while (!n.isZero) {
-      val (valIndex, rest) = decode(n, mask, k)
-      bldr += ev(valIndex)
-      n = rest
-    }
-    bldr.result
-  }
+
+  val cardinality: Card = Card.infinite
+
+  def get(index: Z): Option[List[A]] =
+    Some({
+      val bldr = List.newBuilder[A]
+      var n = index
+      while (!n.isZero) {
+        val (valIndex, rest) = decode(n, mask, k)
+        bldr += ev.get(valIndex).get
+        n = rest
+      }
+      bldr.result
+    })
 
   // decode states (also used for encode)
   final val A = 1 // on m goto B, else goto C
@@ -83,7 +83,29 @@ class CodedList[A](ev: Countable.Infinite[A]) extends Countable.Infinite[List[A]
   }
 }
 
-class NCodedList[A](ev: Indexable.Infinite[A]) extends CodedList(ev) with Indexable.Infinite[List[A]] {
+object NList {
+  def apply[A](ev: Indexable[A]): Indexable[List[A]] =
+    ev.cardinality.value match {
+      case Some(sz) => new NFList(ev, sz)
+      case None => new NIList(ev)
+    }
+}
+
+class NFList[A](ev: Indexable[A], sz: Z) extends CFList(ev, sz) with Indexable[List[A]] {
+  def index(lst: List[A]): Z = {
+    def loop(as: List[A], acc: Z, mult: Z): Z =
+      as match {
+        case head :: tail =>
+          loop(tail, acc + (ev.index(head) + 1) * mult, mult * sz)
+        case Nil =>
+          acc
+      }
+    if (lst.isEmpty) Z.zero
+    else loop(lst, Z.zero, Z.one)
+  }
+}
+
+class NIList[A](ev: Indexable[A]) extends CIList(ev) with Indexable[List[A]] {
   val zmask = Z(mask)
 
   def index(lst: List[A]): Z = {

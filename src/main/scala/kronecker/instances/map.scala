@@ -3,19 +3,26 @@ package instances
 
 import scala.annotation.tailrec
 
-import Countable.{Finite, Infinite}
+object CMap {
+  def apply[K, V](evk: Countable[K], evv: Countable[V]): Countable[Map[K, V]] =
+    (evk.cardinality.value, evv.cardinality.value) match {
+      case (_, Some(szv)) =>
+        new FMap(evk, evv, szv)
+      case (_, None) =>
+        new IMap(evk, evv)
+    }
+}
 
-case class FFMap[K, V](evk: Finite[K], evv: Finite[V]) extends Finite[Map[K, V]] {
-  val evo: Finite[Option[V]] = new CFOption(evv)
-
-  // NOTE: powOf() will crash for unsupportedly-large cardinalities
-  val size: Z = powOf(evo.size, evk.size)
+case class FMap[K, V](evk: Countable[K], evv: Countable[V], szv: Z) extends Countable[Map[K, V]] {
+  val evo: Countable[Option[V]] = new COption(evv)
+  val szo: Z = szv + 1
+  val cardinality: Card = evo.cardinality ** evk.cardinality
 
   def get(index: Z): Option[Map[K, V]] = {
     @tailrec def loop(index0: Z, keyIndex: Z, m0: Map[K, V]): Map[K, V] =
-      if (index0.isZero || keyIndex >= evk.size) m0
+      if (index0.isZero || !evk.cardinality.contains(keyIndex)) m0
       else {
-        val (index1, valIndex) = index0 /% evo.size
+        val (index1, valIndex) = index0 /% szo
         evo.get(valIndex).get match {
           case Some(v) =>
             loop(index1, keyIndex + 1, m0.updated(evk.get(keyIndex).get, v))
@@ -23,72 +30,36 @@ case class FFMap[K, V](evk: Finite[K], evv: Finite[V]) extends Finite[Map[K, V]]
             loop(index1, keyIndex + 1, m0)
         }
       }
-    if (index >= size) None else Some(loop(index, Z.zero, Map.empty))
+    if (cardinality.contains(index)) {
+      Some(loop(index, Z.zero, Map.empty))
+    } else None
   }
 }
 
-case class IFMap[K, V](evk: Infinite[K], evv: Finite[V]) extends Infinite[Map[K, V]] {
-  val evo: Finite[Option[V]] = new CFOption(evv)
+case class IMap[K, V](evk: Countable[K], evv: Countable[V]) extends Countable[Map[K, V]] {
+  val evo: Countable[Option[V]] = new COption(evv)
 
-  def apply(index: Z): Map[K, V] = {
-    @tailrec def loop(index0: Z, keyIndex: Z, m0: Map[K, V]): Map[K, V] =
-      if (index0.isZero) m0
-      else {
-        val (index1, valIndex) = index0 /% evo.size
-        evo.get(valIndex).get match {
-          case Some(v) =>
-            loop(index1, keyIndex + 1, m0.updated(evk(keyIndex), v))
-          case None =>
-            loop(index1, keyIndex + 1, m0)
-        }
-      }
-    loop(index, Z.zero, Map.empty)
-  }
-}
+  val cardinality: Card = evo.cardinality ** evk.cardinality
+  //val lastKey = evk.size - 1
 
-case class FIMap[K, V](evk: Finite[K], evv: Infinite[V]) extends Infinite[Map[K, V]] {
-  val evo: Infinite[Option[V]] = new CIOption(evv)
-
-  val lastKey = evk.size - 1
-
-  def apply(index: Z): Map[K, V] = {
+  def get(index: Z): Option[Map[K, V]] = Some({
     val k = 4
     val mask = (1 << k) - 1
     @tailrec def loop(index0: Z, keyIndex: Z, m0: Map[K, V]): Map[K, V] =
       if (index0.isZero) {
         m0
-      } else if (keyIndex == lastKey) {
-        evo(index0) match {
+      } else if(evk.cardinality.isMax(keyIndex)) {
+        evo.get(index0).get match {
           case Some(v) => m0.updated(evk.get(keyIndex).get, v)
           case None => m0
         }
       } else {
         val (valIndex, index1) = Functional.readCoding(index0, mask, k)
-        loop(index1, keyIndex + 1, evo(valIndex) match {
+        loop(index1, keyIndex + 1, evo.get(valIndex).get match {
           case Some(v) => m0.updated(evk.get(keyIndex).get, v)
           case None => m0
         })
       }
     loop(index, Z.zero, Map.empty)
-  }
-}
-
-case class IIMap[K, V](evk: Infinite[K], evv: Infinite[V]) extends Infinite[Map[K, V]] {
-  val evo: Infinite[Option[V]] = new CIOption(evv)
-
-  def apply(index: Z): Map[K, V] = {
-    val k = 4
-    val mask = (1 << k) - 1
-    @tailrec def loop(index0: Z, keyIndex: Z, m0: Map[K, V]): Map[K, V] =
-      if (index0.isZero) m0 else {
-        val (valIndex, index1) = Functional.readCoding(index0, mask, k)
-        evo(valIndex) match {
-          case Some(v) =>
-            loop(index1, keyIndex + 1, m0.updated(evk(keyIndex), v))
-          case None =>
-            loop(index1, keyIndex + 1, m0)
-        }
-      }
-    loop(index, Z.zero, Map.empty)
-  }
+  })
 }

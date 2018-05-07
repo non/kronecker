@@ -19,6 +19,12 @@ sealed trait Card { lhs =>
       case _ => true
     }
 
+  def isMax(i: Z): Boolean =
+    this match {
+      case Finite(n) => i == n
+      case _ => false
+    }
+
   def +(rhs: Card): Card =
     (lhs, rhs) match {
       case (_, Infinite) => Infinite
@@ -89,9 +95,11 @@ object Card {
 
   val Zero: Finite = Finite(Z.zero)
   val One: Finite = Finite(Z.one)
+  val Two: Finite = Finite(Z(2))
 
   def zero: Card = Zero
   def one: Card = One
+  def two: Card = Two
   def infinite: Card = Infinite
 
   def plus(lhs: Semifinite, rhs: Semifinite): Semifinite =

@@ -1,8 +1,6 @@
 package kronecker
 package instances
 
-import Countable.{Finite, Infinite}
-
 // this is a hack so we generate functions which can be compared with
 // each other for equality.
 private[kronecker] abstract class KFunction[-A, +B](val id: AnyRef) extends Function1[A, B] {
@@ -16,34 +14,25 @@ private[kronecker] abstract class KFunction[-A, +B](val id: AnyRef) extends Func
     id.hashCode
 }
 
-case class FFFunction[A, B](ca: Finite[A], ia: Indexable[A], cb: Finite[B]) extends Finite[A => B] {
-
-  // NOTE: powOf() will crash for unsupportedly-large cardinalities
-  val size: Z = powOf(cb.size, ca.size)
-
-  def get(index: Z): Option[A => B] =
-    if (index >= size) None
-    else Some(new KFunction[A, B]((ca, ia, cb, index)) {
-      val f = Functional.function1(index, cb.size)
-      def apply(a: A): B = cb.get(f(ia.index(a))).get
-    })
-}
-
-case class IFFunction[A, B](ca: Infinite[A], ia: Indexable[A], cb: Finite[B]) extends Infinite[A => B] {
-  def apply(index: Z): A => B =
-    new KFunction[A, B]((ca, ia, cb, index)) {
-      val f = Functional.function1(index, cb.size)
-      def apply(a: A): B = cb.get(f(ia.index(a))).get
+object CFunction {
+  def apply[A, B](eva: Indexable[A], evb: Countable[B]): Countable[A => B] =
+    (eva.cardinality.value, evb.cardinality.value) match {
+      case (_, Some(szb)) =>
+        new FFunction(eva, evb, szb)
+      case (_, None) =>
+        sys.error("!")
     }
 }
 
-// this is currently busted. for example consider Unit => String.
-//
-// in this case we really should just interpret the index as the
-// particular string constant to return, but instead we'll chooose
-// some argIndex that is way too big for Indexable[Unit].
+case class FFunction[A, B](eva: Indexable[A], evb: Countable[B], szb: Z) extends Countable[A => B] {
 
-// case class XIFunction[A, B](ia: Indexable[A], cb: Infinite[B]) extends Infinite[A => B] {
-//   def apply(index: Z): A => B =
-//     (a: A) => cb(Functional.infEvaluate1(index, ia.index(a)))
-// }
+  val cardinality: Card = evb.cardinality ** eva.cardinality
+
+  def get(index: Z): Option[A => B] =
+    if (cardinality.contains(index)) {
+      Some(new KFunction[A, B]((eva, evb)) {
+        val f = Functional.function1(index, szb)
+        def apply(a: A): B = evb.get(f(eva.index(a))).get
+      })
+    } else None
+}
