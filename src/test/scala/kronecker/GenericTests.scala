@@ -20,11 +20,11 @@ object GenericTests extends Properties("Generic") {
 
   case class Pair[A](first: A, second: A)
 
-  // Countable[Qux]
-  // Countable[Set[Qux]]
-  // Countable[List[Qux]]
-  // Countable[Either[Qux, Qux]]
-  // Countable[Pair[Z]]
-  // Countable[Pair[Qux]]
-  // Countable[Pair[Set[Qux]]]
+  Countable[Qux]
+  Countable[Set[Qux]]
+  Countable[List[Qux]]
+  Countable[Either[Qux, Qux]]
+  Countable[Pair[Z]]
+  Countable[Pair[Qux]]
+  Countable[Pair[Set[Qux]]]
 }

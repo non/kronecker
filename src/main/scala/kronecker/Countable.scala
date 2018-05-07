@@ -200,72 +200,19 @@ object Countable extends Countable0 {
     Indexable[List[Char]].imap(_.mkString)(_.toList)
 }
 
-abstract class Countable0 extends Countable1 {
+abstract class Countable0 {
 
-  // // support case classes and tuples via generic derivation.
-  // implicit def fhgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HFinite[H]): Countable.Finite[A] =
-  //   fhlist(evh).translate(gen.from)
-  // 
-  // // support case classes and tuples via generic derivation.
-  // implicit def fcgeneric[A, C <: Coproduct](implicit gen: Generic.Aux[A, C], evc: CFinite[C]): Countable.Finite[A] =
-  //   fcoproduct(evc).translate(gen.from)
-  // 
-  // // suport Hlists
-  // implicit def fhlist[H <: HList](implicit evh: HFinite[H]): Countable.Finite[H] =
-  //   new Countable.Finite[H] {
-  //     def size = evh.size
-  //     def get(index: Z): Option[H] = evh.get(index)
-  //   }
-  // 
-  // // suport Coproducts
-  // implicit def fcoproduct[C <: Coproduct](implicit evc: CFinite[C]): Countable.Finite[C] =
-  //   new Countable.Finite[C] {
-  //     def size = evc.size
-  //     def get(index: Z): Option[C] = evc.get(index)
-  //   }
-}
+  implicit def chgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HCountable[H]): Countable[A] =
+    chlist(evh).translate(gen.from)
+  
+  implicit def chlist[H <: HList](implicit evh: HCountable[H]): Countable[H] =
+    CHList[H](evh)
 
-abstract class Countable1 extends Countable2 {
-
-  // // support case classes and tuples via generic derivation.
-  // implicit def ihgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HInfinite[H]): Countable.Infinite[A] =
-  //   ihlist(evh).translate(gen.from)
-  // 
-  // // support case classes and tuples via generic derivation.
-  // implicit def icgeneric[A, C <: Coproduct](implicit gen: Generic.Aux[A, C], evc: CInfinite[C]): Countable.Infinite[A] =
-  //   icoproduct(evc).translate(gen.from)
-  // 
-  // // suport Hlists
-  // implicit def ihlist[H <: HList](implicit evh: HInfinite[H]): Countable.Infinite[H] =
-  //   new Countable.Infinite[H] {
-  //     val arity = evh.arity
-  //     def apply(index: Z): H =
-  //       evh.lookup(Diagonal.atIndex(arity, index))
-  //   }
-  // 
-  // // suport Coproducts
-  // implicit def icoproduct[C <: Coproduct](implicit evc: CInfinite[C]): Countable.Infinite[C] =
-  //   new Countable.Infinite[C] {
-  //     def apply(index: Z): C = evc(index)
-  //   }
-}
-
-abstract class Countable2 {
-  // implicit def mhgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HMixed[H]): Countable.Infinite[A] =
-  //   mhlist(evh).translate(gen.from)
-  // 
-  // implicit def mhlist[H <: HList](implicit evh: HMixed[H]): Countable.Infinite[H] =
-  //   new Countable.Infinite[H] {
-  //     def apply(index: Z): H = evh.build(index)
-  //   }
-  // 
-  // implicit def mcgeneric[A, C <: Coproduct](implicit gen: Generic.Aux[A, C], evc: CMixed[C]): Countable.Infinite[A] =
-  //   mcoproduct(evc).translate(gen.from)
-  // 
-  // implicit def mcoproduct[C <: Coproduct](implicit evc: CMixed[C]): Countable.Infinite[C] =
-  //   new Countable.Infinite[C] {
-  //     def apply(index: Z): C = evc(index)
-  //   }
+  implicit def ccgeneric[A, C <: Coproduct](implicit gen: Generic.Aux[A, C], evc: CCountable[C]): Countable[A] =
+    ccoproduct(evc).translate(gen.from)
+  
+  implicit def ccoproduct[C <: Coproduct](implicit evc: CCountable[C]): Countable[C] =
+    CCoproduct[C](evc)
 }
 
 trait Indexable[A] extends Countable[A] { self =>
