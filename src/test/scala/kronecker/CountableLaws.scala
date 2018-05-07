@@ -33,7 +33,7 @@ trait CountableLaws[A] { self: Properties =>
         case (false, false) =>
           o1 == None && o2 == None
       }
-      if (!res) println(s"i1=$i1 i2=$i2 o1=$o1 o2=$o2 res=$res")
+      if (!res) println(s"card=$card i1=$i1 i2=$i2 o1=$o1 o2=$o2 res=$res")
       res
     }
   }
@@ -117,29 +117,30 @@ object FOptionIntLaws extends IndexableTests[Option[Int]]
 object FEitherUnitUnit extends IndexableTests[Either[Unit, Unit]]
 object FEitherIntByte extends IndexableTests[Either[Int, Byte]]
 object FSetByte extends IndexableTests[Set[Byte]]
-object FTupleBooleanBoolean extends CountableTests[(Boolean, Boolean)]
-object FTupleLongIntShortByte extends CountableTests[(Long, Int, Short, Byte)]
-object FHListBBBB extends CountableTests[Byte :: Byte :: Byte :: Byte :: HNil]
+//object FTupleBooleanBoolean extends CountableTests[(Boolean, Boolean)]
+//object FTupleLongIntShortByte extends CountableTests[(Long, Int, Short, Byte)]
+//object FHListBBBB extends CountableTests[Byte :: Byte :: Byte :: Byte :: HNil]
 
 object IOptionStringLaws extends IndexableTests[Option[String]]
 object IEitherByteZ extends IndexableTests[Either[Byte, Z]]
 object IEitherZByte extends IndexableTests[Either[Z, Byte]]
 object IEitherZZ extends IndexableTests[Either[Z, Z]]
+object ISetBoolean extends CountableTests[Set[Boolean]]
+object ISetByte extends CountableTests[Set[Byte]]
+object ISetInt extends CountableTests[Set[Int]]
 object ISetZ extends CountableTests[Set[Z]]
 object IListBoolean extends IndexableTests[List[Boolean]]
 object IListByte extends IndexableTests[List[Byte]]
 object IListInt extends IndexableTests[List[Int]]
 object IListZ extends IndexableTests[List[Z]]
-object ITupleZZZ extends CountableTests[(Z, Z, Z)]
-object ITupleZByteByte extends CountableTests[(Z, Byte, Byte)]
-
-//object ISetZ extends IndexableTests[Set[Z]] // arithmetic overflow
-//object IListUnit extends IndexableTests[List[Unit]] // ends up being too intensive
+//object ITupleZZZ extends CountableTests[(Z, Z, Z)]
+//object ITupleZByteByte extends CountableTests[(Z, Byte, Byte)]
 
 object FFMapBB extends CountableTests[Map[Byte, Byte]]
 object FIMapBS extends CountableTests[Map[Byte, String]]
 object IFMapSB extends CountableTests[Map[String, Byte]]
 object IIMapSS extends CountableTests[Map[String, String]]
 
-object FFFunctionBB extends CountableTests[Byte => Byte]
-object IFFunctionSB extends CountableTests[Z => Byte]
+object CFunction22 extends CountableTests[Boolean => Boolean]
+object CFunctionBB extends CountableTests[Byte => Byte]
+object CFunctionZB extends CountableTests[Z => Byte]

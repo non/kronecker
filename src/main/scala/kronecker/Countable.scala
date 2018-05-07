@@ -170,14 +170,8 @@ object Countable extends Countable0 {
   implicit def nset[A](implicit ev: Indexable[A]): Indexable[Set[A]] =
     NSet(ev)
 
-  // implicit def ffmap[K, V](implicit evk: Finite[K], evv: Finite[V]): Finite[Map[K, V]] =
-  //   FFMap(evk, evv)
-  // implicit def ifmap[K, V](implicit evk: Infinite[K], evv: Finite[V]): Infinite[Map[K, V]] =
-  //   IFMap(evk, evv)
-  // implicit def fimap[K, V](implicit evk: Finite[K], evv: Infinite[V]): Infinite[Map[K, V]] =
-  //   FIMap(evk, evv)
-  // implicit def iimap[K, V](implicit evk: Infinite[K], evv: Infinite[V]): Infinite[Map[K, V]] =
-  //   IIMap(evk, evv)
+  implicit def cmap[K, V](implicit evk: Countable[K], evv: Countable[V]): Countable[Map[K, V]] =
+    CMap(evk, evv)
 
   implicit def cfunction[A, B](implicit eva: Indexable[A], evb: Countable[B]): Countable[A => B] =
     CFunction(eva, evb)

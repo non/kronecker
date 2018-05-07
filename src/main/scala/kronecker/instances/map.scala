@@ -38,9 +38,7 @@ case class FMap[K, V](evk: Countable[K], evv: Countable[V], szv: Z) extends Coun
 
 case class IMap[K, V](evk: Countable[K], evv: Countable[V]) extends Countable[Map[K, V]] {
   val evo: Countable[Option[V]] = new COption(evv)
-
   val cardinality: Card = evo.cardinality ** evk.cardinality
-  //val lastKey = evk.size - 1
 
   def get(index: Z): Option[Map[K, V]] = Some({
     val k = 4
