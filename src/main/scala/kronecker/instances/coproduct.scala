@@ -44,11 +44,11 @@ object CCountable {
 
   implicit def ccons[A, C <: Coproduct](implicit eva: Countable[A], evc: CCountable[C]): CCountable[A :+: C] =
     eva.cardinality.value match {
-      case Some(sz) => Finite(eva, sz, evc)
-      case None => ???
+      case Some(sz) => Bounded(eva, sz, evc)
+      case None => Unbounded(eva, evc)
     }
 
-  case class Finite[A, C <: Coproduct](eva: Countable[A], sz: Z, evc: CCountable[C]) extends CCountable[A :+: C] {
+  case class Bounded[A, C <: Coproduct](eva: Countable[A], sz: Z, evc: CCountable[C]) extends CCountable[A :+: C] {
     type FAux = A :+: evc.FAux
     type IAux = evc.IAux
     val card: Card = eva.cardinality + evc.card
@@ -61,7 +61,7 @@ object CCountable {
       Inr(evc.iapply(index, i))
   }
 
-  case class Infinite[A, C <: Coproduct](eva: Countable[A], evc: CCountable[C]) extends CCountable[A :+: C] {
+  case class Unbounded[A, C <: Coproduct](eva: Countable[A], evc: CCountable[C]) extends CCountable[A :+: C] {
     type FAux = evc.FAux
     type IAux = A :+: evc.IAux
     val card = Card.infinite

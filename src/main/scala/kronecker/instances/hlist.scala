@@ -41,11 +41,11 @@ object HCountable {
 
   implicit def hcons[A, H <: HList](implicit eva: Countable[A], evh: HCountable[H]): HCountable[A :: H] =
     eva.cardinality.value match {
-      case Some(sz) => Finite(eva, sz, evh)
-      case None => Infinite(eva, evh)
+      case Some(sz) => Bounded(eva, sz, evh)
+      case None => Unbounded(eva, evh)
     }
 
-  case class Finite[A, H <: HList](eva: Countable[A], sz: Z, evh: HCountable[H]) extends HCountable[A :: H] {
+  case class Bounded[A, H <: HList](eva: Countable[A], sz: Z, evh: HCountable[H]) extends HCountable[A :: H] {
     type FAux = A :: evh.FAux
     type IAux = evh.IAux
     def card: Card = eva.cardinality * evh.card
@@ -61,7 +61,7 @@ object HCountable {
       faux.head :: evh.combine(faux.tail, iaux)
   }
 
-  case class Infinite[A, H <: HList](eva: Countable[A], evh: HCountable[H]) extends HCountable[A :: H] {
+  case class Unbounded[A, H <: HList](eva: Countable[A], evh: HCountable[H]) extends HCountable[A :: H] {
     type FAux = evh.FAux
     type IAux = A :: evh.IAux
     def card: Card =

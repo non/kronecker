@@ -98,40 +98,38 @@ object Countable extends Countable0 {
 
   // .
   implicit val cnothing: Indexable[Nothing] =
-    Indexable.FromRange[Nothing](Z.zero, _ => sys.error("impossible"))(_ => sys.error("impossible"))
+    Indexable.UnsignedRange[Nothing](Card.zero, _ => sys.error("impossible"))(_ => sys.error("impossible"))
 
   // ().
   implicit val cunit: Indexable[Unit] =
-    Indexable.FromRange(Z.one, _ => ())(_ => Z.zero)
+    Indexable.UnsignedRange(Card.one, _ => ())(_ => Z.zero)
 
   // false, true.
   implicit val cboolean: Indexable[Boolean] =
-    Indexable.FromRange(Z.two, _ == Z.one)(b => Z(if (b) 1 else 0))
+    Indexable.UnsignedRange(Card.two, _ == Z.one)(b => if (b) Z.one else Z.zero)
 
   // TODO: the signed streams could be in a nicer order; right now the
   // negatives only come after you exhaust the positives.
 
   // 0, 1, 2, ..., 127, -128, -127, ..., -1.
   implicit val cbyte: Indexable[Byte] =
-    Indexable.FromRange(Z.one << 8, _.toByte)(n => Z(n & 0xff))
+    Indexable.SignedRange(Card(Z.one << 8), _.toByte)(Z(_))
 
   // 0, 1, 2, ..., 65535, -65536, -65535, ..., -1.
   implicit val cshort: Indexable[Short] =
-    Indexable.FromRange(Z.one << 16, _.toShort)(n => Z(n & 0xffff))
+    Indexable.SignedRange(Card(Z.one << 16), _.toShort)(Z(_))
 
   // 0, 1, 2, ..., 65535, -65536, -65535, ..., -1.
   implicit val cchar: Indexable[Char] =
-    Indexable.FromRange(Z.one << 16, _.toChar)(Z(_))
+    Indexable.UnsignedRange(Card(Z.one << 16), _.toChar)(Z(_))
 
   // 0, 1, 2, ... -1.
   implicit val cint: Indexable[Int] =
-    Indexable.FromRange(Z.one << 32, _.toInt)(n => Z(n & 0xffffffffL))
-
-  val BeyondLong = Z.one << 64
+    Indexable.SignedRange(Card(Z.one << 32), _.toInt)(Z(_))
 
   // 0, 1, 2, ... -1.
   implicit val clong: Indexable[Long] =
-    Indexable.FromRange(BeyondLong, _.toLong)(n => if (n >= 0L) Z(n) else BeyondLong + n)
+    Indexable.SignedRange(Card(Z.one << 64), _.toLong)(Z(_))
 
   // TODO: the floating point streams could be in a MUCH nicer order;
   // the current order is pretty much nonsense.
@@ -247,13 +245,20 @@ object Indexable {
 
   def apply[A](implicit ev: Indexable[A]): Indexable[A] = ev
 
-  // helpful class for defining finite instances derived from integer ranges.
-  case class FromRange[A](size: Z, f: Z => A)(g: A => Z) extends Indexable[A] {
-    val cardinality: Card = Card(size)
+  case class SignedRange[A](cardinality: Card, f: Z => A)(g: A => Z) extends Indexable[A] {
     def get(index: Z): Option[A] =
-      if (index >= size) None
-      else if (index >= 0) Some(f(index))
-      else sys.error("!")
-    def index(a: A): Z = g(a)
+      if (!cardinality.contains(index)) None
+      else Countable.cz.get(index).map(n => f(-n))
+    def index(a: A): Z =
+      Countable.cz.index(-g(a))
+  }
+
+  // helpful class for defining finite instances derived from integer ranges.
+  case class UnsignedRange[A](cardinality: Card, f: Z => A)(g: A => Z) extends Indexable[A] {
+    def get(index: Z): Option[A] =
+      if (!cardinality.contains(index)) None
+      else Some(f(index))
+    def index(a: A): Z =
+      g(a)
   }
 }

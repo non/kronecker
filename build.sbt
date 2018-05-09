@@ -4,6 +4,7 @@ scalaVersion := "2.12.4"
 
 scalacOptions ++=
   "-deprecation" ::
+  "-feature" ::
   Nil
 
 libraryDependencies ++=
