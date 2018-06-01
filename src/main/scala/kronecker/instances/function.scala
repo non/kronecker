@@ -14,6 +14,13 @@ private[kronecker] abstract class KFunction[-A, +B](val id: AnyRef) extends Func
     id.hashCode
 }
 
+object KFunction {
+  def apply[A, B](id: AnyRef)(f: A => B): KFunction[A, B] =
+    new KFunction[A, B](id) {
+      def apply(a: A): B = f(a)
+    }
+}
+
 object CFunction {
   def apply[A, B](eva: Indexable[A], evb: Countable[B]): Countable[A => B] =
     (eva.cardinality.value, evb.cardinality.value) match {
@@ -30,9 +37,11 @@ case class FFunction[A, B](eva: Indexable[A], evb: Countable[B], szb: Z) extends
 
   def get(index: Z): Option[A => B] =
     if (cardinality.contains(index)) {
-      Some(new KFunction[A, B]((eva, evb)) {
-        val f = Functional.function1(index, szb)
-        def apply(a: A): B = evb.get(f(eva.index(a))).get
+      val f = Functional.function1(index, szb)
+      Some(KFunction((eva, evb, index)) { (a: A) =>
+        evb.get(f(eva.index(a))).get
       })
-    } else None
+    } else {
+      None
+    }
 }

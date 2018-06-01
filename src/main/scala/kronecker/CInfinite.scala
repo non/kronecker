@@ -17,11 +17,11 @@
 // 
 // object CInfinite{
 // 
-//   // implicit object CFCNil extends CInfinite[CNil] {
-//   //   def arity: Int = 0
-//   //   def apply0(index: Z, i: Int): CNil = sys.error("unreachable")
-//   // }
-// 
+//   implicit object CFCNil extends CFinite[CNil] {
+//     def size: Z = Z.zero
+//     def get(index: Z): Option[CNil] = None
+//   }
+
 //   implicit def cflast[A](implicit eva: Countable.Infinite[A]): CInfinite[A :+: CNil] =
 //     new CInfinite[A :+: CNil] {
 //       val arity: Int = 1

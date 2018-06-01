@@ -99,7 +99,7 @@ object Diagonal {
 
     if (dim == 1) Z.one else loop(dim, Z.one, Z.one, Z.one)
   }
-  
+
   /**
    * Find a dimension `dim` element at the given `index`.
    *
@@ -108,8 +108,12 @@ object Diagonal {
    */
   def atIndex(dim: Int, index: Z): Elem = {
     require(index >= 0)
-    val (pos, depth) = decompose(dim, index)
-    atDepth(dim, depth, pos)
+    if (dim > 0) {
+      val (pos, depth) = decompose(dim, index)
+      atDepth(dim, depth, pos)
+    } else {
+      Nil
+    }
   }
 
   /**
@@ -120,6 +124,8 @@ object Diagonal {
    */
   def atDepth(dim: Int, depth: Z, pos: Z): Elem =
     dim match {
+      case 0 =>
+        Nil
       case 1 =>
         depth :: Nil
       case d =>
@@ -159,7 +165,10 @@ object Diagonal {
    * Decompose an index into a position and depth.
    */
   def decompose(dim: Int, index: Z): (Z, Z) =
-    if (dim == 1) {
+    if (dim == 0) {
+      require(index.isZero)
+      (Z.zero, Z.zero)
+    } else if (dim == 1) {
       (Z.zero, index)
     } else {
 
