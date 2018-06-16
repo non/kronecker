@@ -1,6 +1,7 @@
 package kronecker
+package test
 
-import scala.annotation.tailrec
+import scala.util.Random
 
 abstract class Strategy { self =>
   type State
@@ -35,26 +36,18 @@ object Strategy {
       ((y, x + y), x)
     }
   }
-}
 
-object Testing {
-
-  sealed trait Result
-  case class Success(indices: List[Z]) extends Result
-  case class Failure(failure: Z) extends Result
-
-  def test[A](c: Countable[A], p: Predicate[A], s: Strategy, n: Int): Result = {
-    @tailrec def loop(tries: Int, st0: s.State, passed: List[Z]): Result =
-      if (tries >= n) {
-        Success(passed)
+  object FibonacciR extends Strategy {
+    case class State(lower: Z, upper: Z, st: Pcg32.State)
+    def init: State = State(Z.zero, Z.one, Random.nextLong)
+    def next(st: State): (State, Z) = {
+      val State(x0, y, pst0) = st
+      if (x0 <= 3) {
+        (State(y, x0 + y, pst0), x0)
       } else {
-        val (st1, i) = s.next(st0)
-        c.get(i) match {
-          case None => Success(passed)
-          case Some(a) if p(a) => loop(tries + 1, st1, i :: passed)
-          case Some(_) => Failure(i)
-        }
+        val (pst1, x1) = Pcg32.run(pst0, x0)
+        (State(y, x1 + y, pst1), x0)
       }
-    loop(0, s.init, Nil)
+    }
   }
 }
