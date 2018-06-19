@@ -2,7 +2,13 @@ package kronecker
 
 import shapeless._
 
-trait CountableHListEv[H <: HList] {
+class CountableHList[H <: HList](hm: CountableHListEv[H]) extends Countable[H] {
+  def cardinality: Card = hm.cardinality
+  def get(index: Z): Option[H] =
+    if (cardinality.contains(index)) Some(hm.build(index)) else None
+}
+
+sealed trait CountableHListEv[H <: HList] {
   type FAux <: HList
   type IAux <: HList
 
@@ -21,12 +27,6 @@ trait CountableHListEv[H <: HList] {
   def cardinality: Card
 }
 
-class CountableHList[H <: HList](hm: CountableHListEv[H]) extends Countable[H] {
-  def cardinality: Card = hm.cardinality
-  def get(index: Z): Option[H] =
-    if (cardinality.contains(index)) Some(hm.build(index)) else None
-}
-
 object CountableHListEv {
 
   implicit def hlistCons[A, H <: HList](implicit eva: Countable[A], evh: CountableHListEv[H]): CountableHListEv[A :: H] =
@@ -35,7 +35,7 @@ object CountableHListEv {
       case None => CountableHListEvInfinite(eva, evh)
     }
 
-  implicit object CountableHListEvHNil extends CountableHListEv[HNil] {
+  class CountableHListEvHNil extends CountableHListEv[HNil] {
     type FAux = HNil
     type IAux = HNil
     def infArity: Int = 0
@@ -44,6 +44,8 @@ object CountableHListEv {
     def combine(faux: HNil, iaux: HNil): HNil = HNil
     def cardinality: Card = Card.one
   }
+
+  implicit object CountableHListEvHNil extends CountableHListEvHNil
 
   case class CountableHListEvFinite[A, H <: HList](eva: Countable[A], sz: Z, evh: CountableHListEv[H]) extends CountableHListEv[A :: H] {
     type FAux = A :: evh.FAux
@@ -72,5 +74,41 @@ object CountableHListEv {
     def combine(faux: evh.FAux, iaux: A :: evh.IAux): A :: H =
       iaux.head :: evh.combine(faux, iaux.tail)
     def cardinality: Card = Card.infinite
+  }
+}
+
+class IndexableHList[H <: HList](hm: IndexableHListEv[H]) extends CountableHList[H](hm) with Indexable[H] {
+  def index(h: H): Z =
+    hm.index(h)
+}
+
+sealed trait IndexableHListEv[H <: HList] extends CountableHListEv[H] {
+  def index(h: H): Z
+}
+
+object IndexableHListEv {
+  implicit object IndexableHListEvHNil extends CountableHListEv.CountableHListEvHNil {
+    def index(h: HNil): Z = Z.zero
+  }
+
+  class IndexableHListEvFinite[A, H <: HList](eva: Indexable[A], sz: Z, evh: IndexableHListEv[H])
+      extends CountableHListEv.CountableHListEvFinite(eva, sz, evh)
+      with IndexableHListEv[A :: H] {
+    def index(h: A :: H): Z = {
+      val x = eva.index(h.head)
+      val y = evh.index(h.tail)
+      (y * sz) + x
+    }
+  }
+
+  class IndexableHListEvInfinite[A, H <: HList](eva: Indexable[A], sz: Z, evh: IndexableHListEv[H])
+      extends CountableHListEv.CountableHListEvFinite(eva, sz, evh)
+      with IndexableHListEv[A :: H] {
+    def index(h: A :: H): Z = {
+      // val x = eva.index(h.head)
+      // val y = evh.index(h.tail)
+      // (y * sz) + x
+      ???
+    }
   }
 }
