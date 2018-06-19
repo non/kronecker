@@ -2,7 +2,7 @@ package kronecker
 
 import shapeless._
 
-trait HMixed[H <: HList] {
+trait CountableHListEv[H <: HList] {
   type FAux <: HList
   type IAux <: HList
 
@@ -21,21 +21,21 @@ trait HMixed[H <: HList] {
   def cardinality: Card
 }
 
-class HMixedCountable[H <: HList](hm: HMixed[H]) extends Countable[H] {
+class CountableHList[H <: HList](hm: CountableHListEv[H]) extends Countable[H] {
   def cardinality: Card = hm.cardinality
   def get(index: Z): Option[H] =
     if (cardinality.contains(index)) Some(hm.build(index)) else None
 }
 
-object HMixed {
+object CountableHListEv {
 
-  implicit def hlistCons[A, H <: HList](implicit eva: Countable[A], evh: HMixed[H]): HMixed[A :: H] =
+  implicit def hlistCons[A, H <: HList](implicit eva: Countable[A], evh: CountableHListEv[H]): CountableHListEv[A :: H] =
     eva.cardinality.value match {
-      case Some(sz) => HMixedFinite(eva, sz, evh)
-      case None => HMixedInfinite(eva, evh)
+      case Some(sz) => CountableHListEvFinite(eva, sz, evh)
+      case None => CountableHListEvInfinite(eva, evh)
     }
 
-  implicit object HMixedHNil extends HMixed[HNil] {
+  implicit object CountableHListEvHNil extends CountableHListEv[HNil] {
     type FAux = HNil
     type IAux = HNil
     def infArity: Int = 0
@@ -45,7 +45,7 @@ object HMixed {
     def cardinality: Card = Card.one
   }
 
-  case class HMixedFinite[A, H <: HList](eva: Countable[A], sz: Z, evh: HMixed[H]) extends HMixed[A :: H] {
+  case class CountableHListEvFinite[A, H <: HList](eva: Countable[A], sz: Z, evh: CountableHListEv[H]) extends CountableHListEv[A :: H] {
     type FAux = A :: evh.FAux
     type IAux = evh.IAux
     def infArity: Int = evh.infArity
@@ -61,7 +61,7 @@ object HMixed {
     val cardinality: Card = evh.cardinality * eva.cardinality
   }
 
-  case class HMixedInfinite[A, H <: HList](eva: Countable[A], evh: HMixed[H]) extends HMixed[A :: H] {
+  case class CountableHListEvInfinite[A, H <: HList](eva: Countable[A], evh: CountableHListEv[H]) extends CountableHListEv[A :: H] {
     type FAux = evh.FAux
     type IAux = A :: evh.IAux
     def infArity: Int = evh.infArity + 1

@@ -211,11 +211,11 @@ object Countable {
   implicit def generic[A, R](implicit gen: Generic.Aux[A, R], ev: Lazy[Countable[R]]): Countable[A] =
     ev.value.translate(gen.from)
 
-  implicit def hlist[H <: HList](implicit hm: HMixed[H]): Countable[H] =
-    new HMixedCountable(hm)
+  implicit def hlist[H <: HList](implicit hm: CountableHListEv[H]): Countable[H] =
+    new CountableHList(hm)
 
-  implicit def coproduct[C <: Coproduct](implicit cm: CMixed[C]): Countable[C] =
-    new CMixedCountable(cm)
+  implicit def coproduct[C <: Coproduct](implicit cm: CountableCoproductEv[C]): Countable[C] =
+    new CountableCoproduct(cm)
 }
 
 

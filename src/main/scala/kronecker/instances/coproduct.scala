@@ -2,7 +2,7 @@ package kronecker
 
 import shapeless._
 
-trait CMixed[C <: Coproduct] {
+trait CountableCoproductEv[C <: Coproduct] {
   type FAux <: Coproduct
   type IAux <: Coproduct
 
@@ -23,21 +23,21 @@ trait CMixed[C <: Coproduct] {
     }
 }
 
-class CMixedCountable[C <: Coproduct](cm: CMixed[C]) extends Countable[C] {
+class CountableCoproduct[C <: Coproduct](cm: CountableCoproductEv[C]) extends Countable[C] {
   def cardinality: Card = cm.cardinality
   def get(index: Z): Option[C] =
     if (cardinality.contains(index)) Some(cm.build(index)) else None
 }
 
-object CMixed {
+object CountableCoproductEv {
 
-  implicit def cmixedCons[A, C <: Coproduct](implicit eva: Countable[A], evc: CMixed[C]): CMixed[A :+: C] =
+  implicit def cmixedCons[A, C <: Coproduct](implicit eva: Countable[A], evc: CountableCoproductEv[C]): CountableCoproductEv[A :+: C] =
     eva.cardinality.value match {
-      case Some(sz) => new CMixedFinite(eva, sz, evc)
-      case None => new CMixedInfinite(eva, evc)
+      case Some(sz) => new CountableCoproductEvFinite(eva, sz, evc)
+      case None => new CountableCoproductEvInfinite(eva, evc)
     }
 
-  implicit object CMixedCNil extends CMixed[CNil] {
+  implicit object CountableCoproductEvCNil extends CountableCoproductEv[CNil] {
     type FAux = CNil
     type IAux = CNil
     def cardinality: Card = Card.zero
@@ -47,7 +47,7 @@ object CMixed {
     def iget(index: Z, i: Int): CNil = sys.error("!")
   }
 
-  class CMixedFinite[A, C <: Coproduct](val eva: Countable[A], sz: Z, val evc: CMixed[C]) extends CMixed[A :+: C] {
+  class CountableCoproductEvFinite[A, C <: Coproduct](val eva: Countable[A], sz: Z, val evc: CountableCoproductEv[C]) extends CountableCoproductEv[A :+: C] {
     type FAux = A :+: evc.FAux
     type IAux = evc.IAux
     val finiteSize: Z = sz + evc.finiteSize
@@ -60,7 +60,7 @@ object CMixed {
       Inr(evc.iget(index, i))
   }
 
-  class CMixedInfinite[A, C <: Coproduct](val eva: Countable[A], val evc: CMixed[C]) extends CMixed[A :+: C] {
+  class CountableCoproductEvInfinite[A, C <: Coproduct](val eva: Countable[A], val evc: CountableCoproductEv[C]) extends CountableCoproductEv[A :+: C] {
     type FAux = evc.FAux
     type IAux = A :+: evc.IAux
     def cardinality: Card = Card.infinite
