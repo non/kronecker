@@ -9,77 +9,77 @@ object CList {
       case Some(sz) => new CFList(ev, sz)
       case None => new CIList(ev)
     }
-}
 
-// this only works if the A type is finite. A types that are infinite
-// require a different strategy than the lexicographic order (since
-// you can never finish enumerating the length=1 lists, you need to
-// diagonalize between enumerating lists of various lengths).
-class CFList[A](ev: Countable[A], sz: Z) extends Countable[List[A]] {
-  def cardinality: Card =
-    Card.infinite
-  def get(index: Z): Option[List[A]] =
-    Some({
-      val bldr = List.newBuilder[A]
-      var curr = index
-      while (!curr.isZero) {
-        val (q, r) = (curr - 1) /% sz
-        bldr += ev.get(r).get
-        curr = q
-      }
-      bldr.result
-    })
-}
+  // this only works if the A type is finite. A types that are infinite
+  // require a different strategy than the lexicographic order (since
+  // you can never finish enumerating the length=1 lists, you need to
+  // diagonalize between enumerating lists of various lengths).
+  class CFList[A](ev: Countable[A], sz: Z) extends Countable[List[A]] {
+    def cardinality: Card =
+      Card.infinite
+    def get(index: Z): Option[List[A]] =
+      Some({
+        val bldr = List.newBuilder[A]
+        var curr = index
+        while (!curr.isZero) {
+          val (q, r) = (curr - 1) /% sz
+          bldr += ev.get(r).get
+          curr = q
+        }
+        bldr.result
+      })
+  }
 
-class CIList[A](ev: Countable[A]) extends Countable[List[A]] {
-  val k = 4
-  val mask = (1 << k) - 1
+  class CIList[A](ev: Countable[A]) extends Countable[List[A]] {
+    val k = 4
+    val mask = (1 << k) - 1
 
-  val cardinality: Card = Card.infinite
+    val cardinality: Card = Card.infinite
 
-  def get(index: Z): Option[List[A]] =
-    Some({
-      val bldr = List.newBuilder[A]
-      var n = index
-      while (!n.isZero) {
-        val (valIndex, rest) = decode(n, mask, k)
-        bldr += ev.get(valIndex).get
-        n = rest
-      }
-      bldr.result
-    })
+    def get(index: Z): Option[List[A]] =
+      Some({
+        val bldr = List.newBuilder[A]
+        var n = index
+        while (!n.isZero) {
+          val (valIndex, rest) = decode(n, mask, k)
+          bldr += ev.get(valIndex).get
+          n = rest
+        }
+        bldr.result
+      })
 
-  // decode states (also used for encode)
-  final val A = 1 // on m goto B, else goto C
-  final val B = 2 // on 1 stay in B, on m goto D, else goto C (semi-carry)
-  final val C = 3 // on m goto D, else stay in C
-  final val D = 4 // on m or 1 stay in D, else goto C (carry)
+    // decode states (also used for encode)
+    final val A = 1 // on m goto B, else goto C
+    final val B = 2 // on 1 stay in B, on m goto D, else goto C (semi-carry)
+    final val C = 3 // on m goto D, else stay in C
+    final val D = 4 // on m or 1 stay in D, else goto C (carry)
 
-  def decode(n: Z, m: Int, k: Int): (Z, Z) = {
-    @tailrec def loop(curr: Z, acc: Z, mult: Z, state: Int): (Z, Z) = {
-      val q = curr >> k
-      val r = (curr & m).toInt
-      val isLast = q.isZero
-      val isEnd = r == 0
+    def decode(n: Z, m: Int, k: Int): (Z, Z) = {
+      @tailrec def loop(curr: Z, acc: Z, mult: Z, state: Int): (Z, Z) = {
+        val q = curr >> k
+        val r = (curr & m).toInt
+        val isLast = q.isZero
+        val isEnd = r == 0
 
-      if (isEnd) {
-        (if (state == B || state == D) acc + mult else acc, q)
-      } else {
-        val (acc2, st2) =
-          if (r == m) (acc, if (state == A) B else D)
-          else if (r == 1) (acc + mult, if (state == B) B else if (state == D) D else C)
-          else (acc + (r * mult), C)
-
-        val mult2 = mult * m
-
-        if (isLast) {
-          (if (st2 == D) acc2 + mult2 else acc2, Z.zero)
+        if (isEnd) {
+          (if (state == B || state == D) acc + mult else acc, q)
         } else {
-          loop(q, acc2, mult2, st2)
+          val (acc2, st2) =
+            if (r == m) (acc, if (state == A) B else D)
+            else if (r == 1) (acc + mult, if (state == B) B else if (state == D) D else C)
+            else (acc + (r * mult), C)
+
+          val mult2 = mult * m
+
+          if (isLast) {
+            (if (st2 == D) acc2 + mult2 else acc2, Z.zero)
+          } else {
+            loop(q, acc2, mult2, st2)
+          }
         }
       }
+      loop(n, Z.zero, Z.one, A)
     }
-    loop(n, Z.zero, Z.one, A)
   }
 }
 
@@ -89,80 +89,80 @@ object NList {
       case Some(sz) => new NFList(ev, sz)
       case None => new NIList(ev)
     }
-}
 
-class NFList[A](ev: Indexable[A], sz: Z) extends CFList(ev, sz) with Indexable[List[A]] {
-  def index(lst: List[A]): Z = {
-    def loop(as: List[A], acc: Z, mult: Z): Z =
-      as match {
-        case head :: tail =>
-          loop(tail, acc + (ev.index(head) + 1) * mult, mult * sz)
-        case Nil =>
-          acc
-      }
-    if (lst.isEmpty) Z.zero
-    else loop(lst, Z.zero, Z.one)
-  }
-}
-
-class NIList[A](ev: Indexable[A]) extends CIList(ev) with Indexable[List[A]] {
-  val zmask = Z(mask)
-
-  def index(lst: List[A]): Z = {
-    @tailrec def loop(index: Z, shift: Int, as: List[A]): Z =
-      as match {
-        case Nil =>
-          index
-        case head :: tail =>
-          val (part2, shift2) = encode(head, shift, tail.isEmpty)
-          loop(index + part2, shift2, tail)
-      }
-    loop(Z.zero, 0, lst)
+  class NFList[A](ev: Indexable[A], sz: Z) extends CList.CFList(ev, sz) with Indexable[List[A]] {
+    def index(lst: List[A]): Z = {
+      def loop(as: List[A], acc: Z, mult: Z): Z =
+        as match {
+          case head :: tail =>
+            loop(tail, acc + (ev.index(head) + 1) * mult, mult * sz)
+          case Nil =>
+            acc
+        }
+      if (lst.isEmpty) Z.zero
+      else loop(lst, Z.zero, Z.one)
+    }
   }
 
+  class NIList[A](ev: Indexable[A]) extends CList.CIList(ev) with Indexable[List[A]] {
+    val zmask = Z(mask)
 
-  def encode(a: A, shift0: Int, isLast: Boolean): (Z, Int) = {
-    // in the loop, we step through the current value, looking at its
-    // least-significant digit base-mask, and encoding it in
-    // base-(mask+1). we need to make sure zero digits are encoding as
-    // the mask, since actual zeros are used to signal the end of a
-    // particular element (value-index).
-    //
-    // state transitions mirror those from decode: D means we will
-    // carry no matter what, B means we'll only carry if we're not on
-    // the final element, and C means we won't carry. (it should not
-    // be possible to end up in state A when we're done with this
-    // element.)
-    @tailrec def loop(curr: Z, acc: Z, shift: Int, state: Int): (Z, Int) = {
-      val (q, r) = curr /% zmask
-      val (digit, st) =
-        if (r.isZero) (zmask, if (state == A) B else D)
-        else if (r.isOne) (r, if (state == B) B else if (state == D) D else C)
-        else (r, C)
-
-      if (q.isZero) {
-        if (st == D || (!isLast && st == B)) (acc, shift + k)
-        else (acc + (digit << shift), shift + k + k)
-      } else {
-        loop(q, acc + (digit << shift), shift + k, st)
-      }
+    def index(lst: List[A]): Z = {
+      @tailrec def loop(index: Z, shift: Int, as: List[A]): Z =
+        as match {
+          case Nil =>
+            index
+          case head :: tail =>
+            val (part2, shift2) = encode(head, shift, tail.isEmpty)
+            loop(index + part2, shift2, tail)
+        }
+      loop(Z.zero, 0, lst)
     }
 
-    val vindex = ev.index(a)
-    if (vindex.isZero) {
-      // our value-index is zero, so we'll either use the record
-      // terminator (zero) or a logical zero (mask) to signal that.
-      if (isLast) {
-        // we need to use a mask digit, since a zero digit isn't
-        // meaningful in the "most significant" position.
-        (zmask << shift0, shift0 + k)
-      } else {
-        // we're not at the end yet, so use a record terminator.
-        (Z.zero, shift0 + k)
+
+    def encode(a: A, shift0: Int, isLast: Boolean): (Z, Int) = {
+      // in the loop, we step through the current value, looking at its
+      // least-significant digit base-mask, and encoding it in
+      // base-(mask+1). we need to make sure zero digits are encoding as
+      // the mask, since actual zeros are used to signal the end of a
+      // particular element (value-index).
+      //
+      // state transitions mirror those from decode: D means we will
+      // carry no matter what, B means we'll only carry if we're not on
+      // the final element, and C means we won't carry. (it should not
+      // be possible to end up in state A when we're done with this
+      // element.)
+      @tailrec def loop(curr: Z, acc: Z, shift: Int, state: Int): (Z, Int) = {
+        val (q, r) = curr /% zmask
+        val (digit, st) =
+          if (r.isZero) (zmask, if (state == A) B else D)
+          else if (r.isOne) (r, if (state == B) B else if (state == D) D else C)
+          else (r, C)
+
+        if (q.isZero) {
+          if (st == D || (!isLast && st == B)) (acc, shift + k)
+          else (acc + (digit << shift), shift + k + k)
+        } else {
+          loop(q, acc + (digit << shift), shift + k, st)
+        }
       }
-    } else {
-      // we have a non-zero value-index, so go ahead and encode it.
-      loop(vindex, Z.zero, shift0, A)
+
+      val vindex = ev.index(a)
+      if (vindex.isZero) {
+        // our value-index is zero, so we'll either use the record
+        // terminator (zero) or a logical zero (mask) to signal that.
+        if (isLast) {
+          // we need to use a mask digit, since a zero digit isn't
+          // meaningful in the "most significant" position.
+          (zmask << shift0, shift0 + k)
+        } else {
+          // we're not at the end yet, so use a record terminator.
+          (Z.zero, shift0 + k)
+        }
+      } else {
+        // we have a non-zero value-index, so go ahead and encode it.
+        loop(vindex, Z.zero, shift0, A)
+      }
     }
   }
 }
