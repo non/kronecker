@@ -77,5 +77,13 @@ object DiagonalTests extends Properties("Diagonal") {
 
       (i / info.denom, depth)
     }
-  
+
+  val smallList: Gen[List[Z]] =
+    small.flatMap(n => Gen.listOfN(n, medium)).map(_.map(n => Z(n)))
+
+  property("atIndex(e.size, fromElem(e)) = e") =
+    forAll(smallList) { e =>
+      val i = Diagonal.fromElem(e)
+      Diagonal.atIndex(e.size, i) == e
+    }
 }

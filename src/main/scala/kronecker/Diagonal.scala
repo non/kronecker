@@ -29,7 +29,7 @@ import spire.implicits._
  *
  * This would correspond to the elements:
  *
- *    (0, 0), (1, 0), (0, 1), (2, 0), (1, 1), ...
+ *    (0, 0), (1, 0), (0, 1), (2, 0), (1, 1), (0, 2), ...
  *
  * (where the integers index into the original stream of ASCII string
  * values above.)
@@ -99,7 +99,7 @@ object Diagonal {
 
     if (dim == 1) Z.one else loop(dim, Z.one, Z.one, Z.one)
   }
-  
+
   /**
    * Find a dimension `dim` element at the given `index`.
    *
@@ -174,4 +174,32 @@ object Diagonal {
       val k = search(n => widthAtDepth(dim + 1, n - 1) <= index)
       (index - widthAtDepth(dim + 1, k - 1), k)
     }
+
+  /**
+   * Given an element, determine the index it corresponds to.
+   */
+  def fromElem(elem: Elem): Z = {
+    // returns (dim, depth, pos)
+    def recur(elem: Elem): (Int, Z, Z) =
+      elem match {
+        case x :: Nil =>
+          (1, x, Z.zero)
+        case x :: ys =>
+          val (dim0, depth0, pos0) = recur(ys)
+          val dim1 = dim0 + 1
+          val depth1 = x + depth0
+          val pos1 = if (depth0.isZero) Z.zero else widthAtDepth(dim0 + 1, depth0 - 1) + pos0
+          (dim1, depth1, pos1)
+        case Nil =>
+          sys.error("impossible")
+      }
+    // TODO: could probably be more efficient than repeated widthAtDepth calls :/
+    elem match {
+      case Nil =>
+        Z.zero
+      case xs =>
+        val (dim, depth, pos) = recur(xs)
+        if (depth.isZero) Z.zero else widthAtDepth(dim + 1, depth - 1) + pos
+    }
+  }
 }

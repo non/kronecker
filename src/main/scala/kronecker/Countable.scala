@@ -70,7 +70,7 @@ trait Countable[A] { self =>
     }
 }
 
-object Countable extends Countable0 {
+object Countable extends Countable1 {
 
   def apply[A](implicit ev: Countable[A]): Countable[A] = ev
 
@@ -201,17 +201,26 @@ object Countable extends Countable0 {
     Indexable[List[Char]].imap(_.mkString)(_.toList)
 }
 
+abstract class Countable1 extends Countable0 {
+
+  implicit def ihgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HIndexable[H]): Indexable[A] =
+    ihlist(evh).imap(gen.from)(gen.to)
+
+  implicit def ihlist[H <: HList](implicit evh: HIndexable[H]): Indexable[H] =
+    new HIndexable.ToIndexable(evh)
+}
+
 abstract class Countable0 {
 
   implicit def chgeneric[A, H <: HList](implicit gen: Generic.Aux[A, H], evh: HCountable[H]): Countable[A] =
     chlist(evh).translate(gen.from)
-  
+
   implicit def chlist[H <: HList](implicit evh: HCountable[H]): Countable[H] =
-    CHList[H](evh)
+    new HCountable.ToCountable(evh)
 
   implicit def ccgeneric[A, C <: Coproduct](implicit gen: Generic.Aux[A, C], evc: CCountable[C]): Countable[A] =
     ccoproduct(evc).translate(gen.from)
-  
+
   implicit def ccoproduct[C <: Coproduct](implicit evc: CCountable[C]): Countable[C] =
     CCoproduct[C](evc)
 }

@@ -1,15 +1,7 @@
 package kronecker
+package instances
 
 import shapeless._
-
-object CHList {
-  def apply[H <: HList](implicit evh: HCountable[H]): Countable[H] =
-    new Countable[H] {
-      def cardinality: Card = evh.card
-      def get(index: Z): Option[H] =
-        if (evh.card.contains(index)) Some(evh.build(index)) else None
-    }
-}
 
 sealed trait HCountable[H <: HList] {
   type FAux <: HList
@@ -29,7 +21,14 @@ sealed trait HCountable[H <: HList] {
 
 object HCountable {
 
-  implicit object CHNil extends HCountable[HNil] {
+  class ToCountable[H <: HList](evh: HCountable[H]) extends Countable[H] {
+    def cardinality: Card =
+      evh.card
+    def get(index: Z): Option[H] =
+      if (evh.card.contains(index)) Some(evh.build(index)) else None
+  }
+
+  sealed trait CHNil extends HCountable[HNil] {
     type FAux = HNil
     type IAux = HNil
     val card: Card = Card.one
@@ -39,13 +38,7 @@ object HCountable {
     def combine(faux: FAux, iaux: IAux): HNil = HNil
   }
 
-  implicit def hcons[A, H <: HList](implicit eva: Countable[A], evh: HCountable[H]): HCountable[A :: H] =
-    eva.cardinality.value match {
-      case Some(sz) => Bounded(eva, sz, evh)
-      case None => Unbounded(eva, evh)
-    }
-
-  case class Bounded[A, H <: HList](eva: Countable[A], sz: Z, evh: HCountable[H]) extends HCountable[A :: H] {
+  class Bounded[A, H <: HList](eva: Countable[A], sz: Z, val evh: HCountable[H]) extends HCountable[A :: H] {
     type FAux = A :: evh.FAux
     type IAux = evh.IAux
     def card: Card = eva.cardinality * evh.card
@@ -61,7 +54,7 @@ object HCountable {
       faux.head :: evh.combine(faux.tail, iaux)
   }
 
-  case class Unbounded[A, H <: HList](eva: Countable[A], evh: HCountable[H]) extends HCountable[A :: H] {
+  class Unbounded[A, H <: HList](eva: Countable[A], val evh: HCountable[H]) extends HCountable[A :: H] {
     type FAux = evh.FAux
     type IAux = A :: evh.IAux
     def card: Card =
@@ -75,4 +68,73 @@ object HCountable {
     def combine(faux: evh.FAux, iaux: A :: evh.IAux): A :: H =
       iaux.head :: evh.combine(faux, iaux.tail)
   }
+
+  implicit object CHNil extends CHNil
+
+  implicit def hcons[A, H <: HList](implicit eva: Countable[A], evh: HCountable[H]): HCountable[A :: H] =
+    eva.cardinality.value match {
+      case Some(sz) => new Bounded(eva, sz, evh)
+      case None => new Unbounded(eva, evh)
+    }
+}
+
+sealed trait HIndexable[H <: HList] extends HCountable[H] {
+  def split(h: H): (FAux, IAux)
+  def funbuild(faux: FAux): (Z, Z)
+  def iunbuild(iaux: IAux): List[Z]
+
+  final def unbuild(h: H): Z = {
+    val (faux, iaux) = split(h)
+    val (i, n) = funbuild(faux)
+    val j = Diagonal.fromElem(iunbuild(iaux))
+    i + (j * n)
+  }
+}
+
+object HIndexable {
+
+  class ToIndexable[H <: HList](evh: HIndexable[H]) extends HCountable.ToCountable(evh) with Indexable[H] {
+    def index(h: H): Z = evh.unbuild(h)
+  }
+
+  sealed trait IHNil extends HCountable.CHNil with HIndexable[HNil] {
+    def split(h: HNil): (FAux, IAux) = (HNil, HNil)
+    def funbuild(faux: FAux): (Z, Z) = (Z.zero, Z.one)
+    def iunbuild(iaux: IAux): List[Z] = Nil
+  }
+
+  class Bounded[A, H <: HList](eva: Indexable[A], sz: Z, override val evh: HIndexable[H])
+      extends HCountable.Bounded[A, H](eva, sz, evh) with HIndexable[A :: H] {
+    def split(elem: A :: H): (FAux, IAux) = {
+      val (fx, ix) = evh.split(elem.tail)
+      (elem.head :: fx, ix)
+    }
+    def funbuild(faux: FAux): (Z, Z) = {
+      val (i, n) = evh.funbuild(faux.tail)
+      val j = eva.index(faux.head) + (sz * i)
+      (j, n * sz)
+    }
+    def iunbuild(iaux: IAux): List[Z] =
+      evh.iunbuild(iaux)
+  }
+
+  class Unbounded[A, H <: HList](eva: Indexable[A], override val evh: HIndexable[H])
+      extends HCountable.Unbounded[A, H](eva, evh) with HIndexable[A :: H] {
+    def split(elem: A :: H): (FAux, IAux) = {
+      val (fx, ix) = evh.split(elem.tail)
+      (fx, elem.head :: ix)
+    }
+    def funbuild(faux: FAux): (Z, Z) =
+      evh.funbuild(faux)
+    def iunbuild(iaux: IAux): List[Z] =
+      eva.index(iaux.head) :: evh.iunbuild(iaux.tail)
+  }
+
+  implicit object IHNil extends IHNil
+
+  implicit def hcons[A, H <: HList](implicit eva: Indexable[A], evh: HIndexable[H]): HIndexable[A :: H] =
+    eva.cardinality.value match {
+      case Some(sz) => new Bounded(eva, sz, evh)
+      case None => new Unbounded(eva, evh)
+    }
 }
