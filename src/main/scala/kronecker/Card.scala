@@ -45,6 +45,13 @@ sealed trait Card { lhs =>
       case (x: Semifinite, y: Semifinite) => plus(x, y)
     }
 
+  // unsafe
+  def -(rhs: Int): Card =
+    (lhs, rhs) match {
+      case (Finite(n), rhs) => Finite(n - rhs)
+      case (card, _) => card
+    }
+
   def *(rhs: Card): Card =
     (lhs, rhs) match {
       case (Zero, _) => Zero

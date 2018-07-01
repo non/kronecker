@@ -44,37 +44,6 @@ import scala.annotation.tailrec
  */
 object Functional {
 
-  def fastEvaluate(index: Z, input: Z, outMask: Z, outShift: Int): Z = {
-    @tailrec def loop(index0: Z, argIndex: Z): Z =
-      if (index0.isZero) Z.zero
-      else if (argIndex >= input) index0 & outMask
-      else loop(index0 >> outShift, argIndex + 1)
-    loop(index, Z.zero)
-  }
-
-  def evaluate(index: Z, input: Z, outWidth: Z): Z = {
-    @tailrec def loop(index0: Z, argIndex: Z): Z =
-      if (index0.isZero) Z.zero
-      else if (argIndex >= input) index0 % outWidth
-      else loop(index0 / outWidth, argIndex + 1)
-    loop(index, Z.zero)
-  }
-
-  /**
-   * Construct an anonymous function Z => Z using evaluate or
-   * fastEvaluate as appropriate.
-   */
-  def function1(index: Z, outWidth: Z): Function1[Z, Z] =
-    if (outWidth.toBigInt.bitCount == 1) {
-      // outWidth is a power of two
-      val mask = outWidth - 1
-      val shift = outWidth.bitLength - 1
-      (input: Z) => fastEvaluate(index, input, mask, shift)
-    } else {
-      // outWidth is not a power of two
-      (input: Z) => evaluate(index, input, outWidth)
-    }
-
   /**
    * Read an unbounded natural number in the given byte coding.
    *

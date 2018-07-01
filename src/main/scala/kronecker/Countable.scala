@@ -68,6 +68,13 @@ trait Countable[A] { self =>
       def cardinality: Card = self.cardinality
       def get(index: Z): Option[B] = self.get(index).map(f)
     }
+
+  def drop(k: Int): Countable[A] =
+    new Countable[A] {
+      require(k >= 0)
+      def cardinality: Card = self.cardinality - k
+      def get(index: Z): Option[A] = self.get(index + k)
+    }
 }
 
 object Countable extends Countable1 {
