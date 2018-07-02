@@ -153,13 +153,13 @@ object Countable extends Countable1 {
   implicit val cbigInteger: Indexable[java.math.BigInteger] =
     cz.imap(_.toBigInt.bigInteger)(Z(_))
 
-  // Option
+  // Option: could also be provided generically
   implicit def coption[A](implicit ev: Countable[A]): Countable[Option[A]] =
     new COption(ev)
   implicit def noption[A](implicit ev: Indexable[A]): Indexable[Option[A]] =
     new NOption(ev)
 
-  // Either
+  // Either: could also be provided generically
   implicit def ceither[A, B](implicit eva: Countable[A], evb: Countable[B]): Countable[Either[A, B]] =
     CEither(eva, evb)
   implicit def neither[A, B](implicit eva: Indexable[A], evb: Indexable[B]): Indexable[Either[A, B]] =
@@ -215,6 +215,12 @@ abstract class Countable1 extends Countable0 {
 
   implicit def ihlist[H <: HList](implicit evh: HIndexable[H]): Indexable[H] =
     new HIndexable.ToIndexable(evh)
+
+  implicit def icgeneric[A, C <: Coproduct](implicit gen: Generic.Aux[A, C], evc: CIndexable[C]): Indexable[A] =
+    icoproduct(evc).imap(gen.from)(gen.to)
+
+  implicit def icoproduct[C <: Coproduct](implicit evc: CIndexable[C]): Indexable[C] =
+    new CIndexable.ToIndexable(evc)
 }
 
 abstract class Countable0 {
@@ -229,7 +235,7 @@ abstract class Countable0 {
     ccoproduct(evc).translate(gen.from)
 
   implicit def ccoproduct[C <: Coproduct](implicit evc: CCountable[C]): Countable[C] =
-    CCoproduct[C](evc)
+    new CCountable.ToCountable(evc)
 }
 
 /**
@@ -260,6 +266,13 @@ trait Indexable[A] extends Countable[A] { self =>
 object Indexable {
 
   def apply[A](implicit ev: Indexable[A]): Indexable[A] = ev
+
+  def singleton[A](a: A): Indexable[A] =
+    new Indexable[A] {
+      def cardinality: Card = Card.one
+      def get(index: Z): Option[A] = if (index.isZero) Some(a) else None
+      def index(a: A): Z = Z.zero
+    }
 
   case class SignedRange[A](cardinality: Card, f: Z => A)(g: A => Z) extends Indexable[A] {
     def get(index: Z): Option[A] =

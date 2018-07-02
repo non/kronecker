@@ -21,7 +21,7 @@ sealed trait HCountable[H <: HList] {
 
 object HCountable {
 
-  class ToCountable[H <: HList](evh: HCountable[H]) extends Countable[H] {
+  sealed class ToCountable[H <: HList](evh: HCountable[H]) extends Countable[H] {
     def cardinality: Card =
       evh.card
     def get(index: Z): Option[H] =
@@ -38,7 +38,7 @@ object HCountable {
     def combine(faux: FAux, iaux: IAux): HNil = HNil
   }
 
-  class Bounded[A, H <: HList](eva: Countable[A], sz: Z, val evh: HCountable[H]) extends HCountable[A :: H] {
+  sealed class Bounded[A, H <: HList](eva: Countable[A], sz: Z, val evh: HCountable[H]) extends HCountable[A :: H] {
     type FAux = A :: evh.FAux
     type IAux = evh.IAux
     def card: Card = eva.cardinality * evh.card
@@ -54,7 +54,7 @@ object HCountable {
       faux.head :: evh.combine(faux.tail, iaux)
   }
 
-  class Unbounded[A, H <: HList](eva: Countable[A], val evh: HCountable[H]) extends HCountable[A :: H] {
+  sealed class Unbounded[A, H <: HList](eva: Countable[A], val evh: HCountable[H]) extends HCountable[A :: H] {
     type FAux = evh.FAux
     type IAux = A :: evh.IAux
     def card: Card =
@@ -93,7 +93,7 @@ sealed trait HIndexable[H <: HList] extends HCountable[H] {
 
 object HIndexable {
 
-  class ToIndexable[H <: HList](evh: HIndexable[H]) extends HCountable.ToCountable(evh) with Indexable[H] {
+  final class ToIndexable[H <: HList](evh: HIndexable[H]) extends HCountable.ToCountable(evh) with Indexable[H] {
     def index(h: H): Z = evh.unbuild(h)
   }
 
@@ -103,7 +103,7 @@ object HIndexable {
     def iunbuild(iaux: IAux): List[Z] = Nil
   }
 
-  class Bounded[A, H <: HList](eva: Indexable[A], sz: Z, override val evh: HIndexable[H])
+  final class Bounded[A, H <: HList](eva: Indexable[A], sz: Z, override val evh: HIndexable[H])
       extends HCountable.Bounded[A, H](eva, sz, evh) with HIndexable[A :: H] {
     def split(elem: A :: H): (FAux, IAux) = {
       val (fx, ix) = evh.split(elem.tail)
@@ -118,7 +118,7 @@ object HIndexable {
       evh.iunbuild(iaux)
   }
 
-  class Unbounded[A, H <: HList](eva: Indexable[A], override val evh: HIndexable[H])
+  final class Unbounded[A, H <: HList](eva: Indexable[A], override val evh: HIndexable[H])
       extends HCountable.Unbounded[A, H](eva, evh) with HIndexable[A :: H] {
     def split(elem: A :: H): (FAux, IAux) = {
       val (fx, ix) = evh.split(elem.tail)

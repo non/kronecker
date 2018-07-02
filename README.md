@@ -15,12 +15,16 @@
 Kronecker is intended to be a library for enumerating all distinct
 values of types.
 
-### Example
-
 The `Countable[A]` type class provides a `get` method, which takes an
 index (given as a `spire.math.SafeLong`) and returns an `Option[A]`.
 The type class instance must be able to generate any possible `A`
 value (provided a large enough input number is provided).
+
+The `Indexable[A]` type class extends `Countable[A]`, but also
+provides an `index` method, which takes an `A` value and returns its
+corresponding index such that `get(index) == Some(a)`.
+
+### Example
 
 Here's an example REPL session that demonstrates some basic
 functionality:
@@ -74,14 +78,14 @@ The laws for `ev: Countable[A]` are as follows:
  * `ev.get(i)` returns `Some(_)` for all `i < ev.cardinality`
  * `ev.get(i)` returns `None` for all `i >= ev.cardinality`
  * `ev.get(i) = Some(_) = ev.get(j)` if and only if `i = j`
- 
+
 The laws for `ev: Indexable[A]` are the above laws and also:
 
  * if `ev.get(i)` returns `Some(a)`, then `ev.index(a) = i`
  * for all `a`, `0 <= index(a) < ev.cardinality`
  * for all `a`, `get(index(a)) = Some(a)`
- * `index(a1) = index(a2)` if and only if `a1 = a2`
- 
+ * `index(a1) = index(a2)` if and only if `a1 = a2`.
+
 In all these laws `i` is assumed to be a non-negative, unbounded
 integer (i.e. a `spire.math.SafeLong`, aliased as `Z` in Kronecker).
 
@@ -90,11 +94,11 @@ integer (i.e. a `spire.math.SafeLong`, aliased as `Z` in Kronecker).
 Some people might take issue with the finite/infinite terminology
 (especially in a library named for Kronecker). The terms stand in for
 bounded/unbounded. `Card.Finite` represents a finite, definite
-quantity that we can compute with, whereas `Card.Infninite` represents
+quantity that we can compute with, whereas `Card.Infinite` represents
 an unbounded cardinality (a set whose members can't be exhaustively
 enumerated). The other `Card.Semifinite` members (`Plus`, `Times`,
 `Pow`) represent quantities that are bounded, but which can't be
-computed with in the current runtime (they are effectively unbounded).
+computed within the current runtime (they are effectively unbounded).
 
 ### Known issues
 
@@ -125,8 +129,8 @@ then the cardinality of a `Set[A]` is *2ˣ*.
 
 ### Future work
 
-We're missing `Indexable` instances for `Map`, for `HList`, and for
-`Coproduct`.
+We're missing `Indexable` instances for `Map`, as well as `Countable`
+instances for functions with infinite ranges.
 
 There is some work-in-progress around actually using `Countable[A]` to
 power property-based tests (e.g. ScalaCheck). This might end up being
