@@ -1,4 +1,5 @@
 import ReleaseTransformations._
+import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 lazy val kroneckerSettings = Seq(
   organization := "org.spire-math",
@@ -63,7 +64,8 @@ lazy val root = project
   .settings(kroneckerSettings: _*)
   .settings(noPublish: _*)
 
-lazy val core = crossProject
+lazy val core = crossProject(JSPlatform, JVMPlatform)
+  .withoutSuffixFor(JVMPlatform)
   .crossType(CrossType.Pure)
   .in(file("core"))
   .settings(name := "kronecker-core")
