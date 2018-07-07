@@ -80,16 +80,17 @@ object Coding {
    * Read an unbounded natural number in the given byte coding.
    *
    * The return value is `(valueRead, indexAfterReading)`.
+   * The return value is `(indexAfterReading, valueRead)`.
    */
   def read(index: Z, mask: Int, k: Int): (Z, Z) = {
     @tailrec def loop(index0: Z, mult: Z, counter0: Z, carry0: Boolean): (Z, Z) =
       if (index0.isZero) {
-        (if (carry0) counter0 + mult else counter0, index0)
+        (index0, if (carry0) counter0 + mult else counter0)
       } else {
         val bits = (index0 & mask).toInt
         val index1 = index0 >> k
         if (bits == 0) {
-          (if (carry0) mult + counter0 else counter0, index1)
+          (index1, if (carry0) mult + counter0 else counter0)
         } else {
           val n = if (bits == mask) 0 else bits
           val counter1 = if (n > 0) counter0 + (mult * n) else counter0

@@ -1,12 +1,11 @@
 import ReleaseTransformations._
-import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 lazy val kroneckerSettings = Seq(
   organization := "org.spire-math",
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
   homepage := Some(url("http://github.com/non/kronecker")),
   scalaVersion := "2.12.4",
-  crossScalaVersions := Seq(/*"2.10.6", */"2.11.12", "2.12.4"),
+  crossScalaVersions := Seq("2.11.12", "2.12.4"),
   scalacOptions ++=
     "-feature" ::
     "-deprecation" ::
@@ -65,8 +64,7 @@ lazy val root = project
   .settings(kroneckerSettings: _*)
   .settings(noPublish: _*)
 
-lazy val core = crossProject(JSPlatform, JVMPlatform)
-  .withoutSuffixFor(JVMPlatform)
+lazy val core = crossProject
   .crossType(CrossType.Pure)
   .in(file("core"))
   .settings(name := "kronecker-core")
