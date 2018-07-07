@@ -13,6 +13,7 @@ lazy val kroneckerSettings = Seq(
     Nil,
   libraryDependencies ++=
     "org.typelevel" %% "spire" % "0.14.1" ::
+    "org.typelevel" %% "spire-extras" % "0.14.1" ::
     "com.chuusai" %% "shapeless" % "2.3.3" ::
     "org.scalacheck" %% "scalacheck" % "1.13.5" % "test" ::
     Nil,
@@ -70,3 +71,13 @@ lazy val core = crossProject
   .settings(kroneckerSettings: _*)
 lazy val coreJVM = core.jvm
 lazy val coreJS = core.js
+
+lazy val refined = crossProject
+  .crossType(CrossType.Pure)
+  .in(file("refined"))
+  .dependsOn(core)
+  .settings(name := "kronecker-refined")
+  .settings(kroneckerSettings: _*)
+  .settings(libraryDependencies += "eu.timepit" %% "refined" % "0.9.1")
+lazy val refinedJVM = refined.jvm
+lazy val refinedJS = refined.js

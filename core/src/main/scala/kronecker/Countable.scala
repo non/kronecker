@@ -4,8 +4,10 @@ import java.lang.Double.{doubleToRawLongBits, longBitsToDouble}
 import java.lang.Float.{floatToRawIntBits, intBitsToFloat}
 import kronecker.instances._
 import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.reflect.ClassTag
 import shapeless._
+import spire.math.Searching
 
 /**
  * Countable[A] represents an ordering of every possible A value.
@@ -69,6 +71,9 @@ trait Countable[A] { self =>
       def get(index: Z): Option[B] = self.get(index).map(f)
     }
 
+  /**
+   * Drop the first k items from the countable instance.
+   */
   def drop(k: Int): Countable[A] =
     new Countable[A] {
       require(k >= 0)
@@ -79,6 +84,9 @@ trait Countable[A] { self =>
 
 object Countable extends Countable1 {
 
+  /**
+   * Summon an implicit Countable[A] instance.
+   */
   def apply[A](implicit ev: Countable[A]): Countable[A] = ev
 
   // 0, 1, -1, 2, -2, ...
@@ -103,9 +111,103 @@ object Countable extends Countable1 {
         }
     }
 
+  /**
+   * Produce an "empty" countable with cardinality zero.
+   */
+  def empty[A]: Indexable[A] =
+    new Indexable[A] {
+      def cardinality: Card = Card.zero
+      def get(index: Z): Option[A] = None
+      def index(a: A): Z = sys.error("impossible")
+    }
+
+  /**
+   * 
+   */
+  def singleton[A](a: A): Indexable[A] =
+    new Indexable[A] {
+      def cardinality: Card = Card.one
+      def get(index: Z): Option[A] = if (index.isZero) Some(a) else None
+      def index(a: A): Z = Z.zero
+    }
+
+  /**
+   * Given a collection of non-overlapping countable instances, build
+   * a new countable instance which includes all values produced by
+   * any of the given instances.
+   *
+   * The given countable instances must be non-overlapping; this means
+   * that they should not ever produce the same A values. If instances
+   * were to overlap, the cardinality of the resulting instance would
+   * be too large, and it would produce the same value for two or more
+   * indices, violating the laws.
+   */
+  def oneOf[A](cs: Countable[A]*): Countable[A] =
+    if (cs.isEmpty) {
+      Countable.empty[A]
+    } else if (cs.size == 1) {
+      cs(0)
+    } else {
+      var ctot = Z.zero
+      val cbuf = mutable.ArrayBuffer.empty[Z]
+      val fbuf = mutable.ArrayBuffer.empty[Countable[A]]
+      val ibuf = mutable.ArrayBuffer.empty[Countable[A]]
+
+      cs.foreach { c =>
+        c.cardinality match {
+          case Card.Finite(n) =>
+            ctot += n
+            cbuf.append(ctot)
+            fbuf.append(c)
+          case _ =>
+            ibuf.append(c)
+        }
+      }
+
+      def allFinite: Countable[A] =
+        new Countable[A] {
+          val cardinality: Card = Card(ctot)
+          val cutoffs: Array[Z] = cbuf.toArray
+          val cs: Array[Countable[A]] = fbuf.toArray
+          def get(index: Z): Option[A] =
+            if (cardinality.contains(index)) {
+              val i: Int = Searching.search(cutoffs, index)
+              val j: Int = if (i < 0) -(i + 1) else i + 1
+              val k: Z = if (j > 0) cutoffs(j - 1) else Z.zero
+              cs(j).get(index - k)
+            } else {
+              None
+            }
+        }
+
+      def allInfinite: Countable[A] =
+        new Countable[A] {
+          val cs = ibuf.toArray
+          def cardinality: Card = Card.infinite
+          def get(index: Z): Option[A] = {
+            val (q, r) = index /% cs.length
+            cs(r.toInt).get(q)
+          }
+        }
+
+      (ibuf.nonEmpty, fbuf.nonEmpty) match {
+        case (true, true) =>
+          Countable.ceither(allFinite, allInfinite).translate {
+            case Left(a) => a
+            case Right(a) => a
+          }
+        case (false, true) =>
+          allFinite
+        case (true, false) =>
+          allInfinite
+        case (false, false) =>
+          Countable.empty[A]
+      }
+    }
+
   // .
   implicit val cnothing: Indexable[Nothing] =
-    Indexable.UnsignedRange[Nothing](Card.zero, _ => sys.error("impossible"))(_ => sys.error("impossible"))
+    empty[Nothing]
 
   // ().
   implicit val cunit: Indexable[Unit] =
@@ -261,18 +363,29 @@ trait Indexable[A] extends Countable[A] { self =>
       def get(index: Z): Option[B] = self.get(index).map(f)
       def index(b: B): Z = self.index(g(b))
     }
+
+  /**
+   * Drop the first k items from the countable instance.
+   */
+  override def drop(k: Int): Indexable[A] =
+    new Indexable[A] {
+      require(k >= 0)
+      def cardinality: Card = self.cardinality - k
+      def get(index: Z): Option[A] = self.get(index + k)
+      def index(a: A): Z = self.index(a) - k
+    }
 }
 
 object Indexable {
 
   def apply[A](implicit ev: Indexable[A]): Indexable[A] = ev
 
-  def singleton[A](a: A): Indexable[A] =
-    new Indexable[A] {
-      def cardinality: Card = Card.one
-      def get(index: Z): Option[A] = if (index.isZero) Some(a) else None
-      def index(a: A): Z = Z.zero
-    }
+  // def singleton[A](a: A): Indexable[A] =
+  //   new Indexable[A] {
+  //     def cardinality: Card = Card.one
+  //     def get(index: Z): Option[A] = if (index.isZero) Some(a) else None
+  //     def index(a: A): Z = Z.zero
+  //   }
 
   case class SignedRange[A](cardinality: Card, f: Z => A)(g: A => Z) extends Indexable[A] {
     def get(index: Z): Option[A] =

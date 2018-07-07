@@ -6,6 +6,7 @@ import scala.annotation.tailrec
 object CList {
   def apply[A](ev: Countable[A]): Countable[List[A]] =
     ev.cardinality.value match {
+      case Some(sz) if sz.isZero => Countable.singleton(Nil)
       case Some(sz) => new CFList(ev, sz)
       case None => new CIList(ev)
     }
@@ -86,6 +87,7 @@ class CIList[A](ev: Countable[A]) extends Countable[List[A]] {
 object NList {
   def apply[A](ev: Indexable[A]): Indexable[List[A]] =
     ev.cardinality.value match {
+      case Some(sz) if sz.isZero => Countable.singleton(Nil)
       case Some(sz) => new NFList(ev, sz)
       case None => new NIList(ev)
     }

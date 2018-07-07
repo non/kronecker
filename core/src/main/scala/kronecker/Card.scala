@@ -34,7 +34,7 @@ sealed trait Card { lhs =>
 
   def isMax(i: Z): Boolean =
     this match {
-      case Finite(n) => i == n
+      case Finite(n) => i == n - 1
       case _ => false
     }
 
@@ -48,6 +48,7 @@ sealed trait Card { lhs =>
   // unsafe
   def -(rhs: Int): Card =
     (lhs, rhs) match {
+      case (Finite(n), rhs) if Z(rhs) >= n => Card.zero
       case (Finite(n), rhs) => Finite(n - rhs)
       case (card, _) => card
     }
