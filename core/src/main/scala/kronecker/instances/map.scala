@@ -56,7 +56,7 @@ object CMap {
             case None => m0
           }
         } else {
-          val (valIndex, index1) = Functional.readCoding(index0, mask, k)
+          val (valIndex, index1) = Coding.read(index0, mask, k)
           loop(index1, keyIndex + 1, evo.get(valIndex).get match {
             case Some(v) => m0.updated(evk.get(keyIndex).get, v)
             case None => m0
