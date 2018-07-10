@@ -1,10 +1,14 @@
 package kronecker
 package refined
 
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.auto._
 import eu.timepit.refined.{boolean => b}
 import eu.timepit.refined.{generic => g}
 import eu.timepit.refined.{numeric => n}
 import eu.timepit.refined.internal.{WitnessAs => W}
+
+import shapeless.{Witness => L}
 
 import spire.algebra.Order
 import spire.math.{Interval, Searching}
@@ -13,61 +17,77 @@ import spire.implicits._
 
 import scala.collection.mutable
 
-object interval {
+trait AsZ[A] {
+  type Image <: Z
+  def to(a: A): Image
+  def from(z: Image): A
+  def toz(a: A): Z
+  def fromz(z: Z): Option[A]
+}
 
-  class CountableInterval(size: Z, first: Long) extends Countable[Long] {
-    val cardinality: Card =
-      Card(size)
-    def get(index: Z): Option[Long] =
-      if (cardinality.contains(index)) Some(first + index.toLong) else None
-  }
-
-  class CountableIntervalSeq(size: Z, ivs: Array[Countable[Long]], sizes: Array[Z]) extends Countable[Long] {
-    val cardinality: Card =
-      Card(size)
-
-    def get(index: Z): Option[Long] =
-      if (cardinality.contains(index)) {
-        val i = Searching.search(sizes, index)
-        val j = if (i >= 0) i + 1 else -(i + 1)
-        val c = ivs(j)
-        val k = sizes(j) - c.cardinality.value.get
-        c.get(k)
-      } else {
-        None
-      }
-  }
-
-  def resolve(iv: Interval[Long]): (Long, Long) = {
-    import spire.math.interval._
-    val first = iv.lowerBound match {
-      case Closed(x) => x
-      case Open(x) => x + 1L
-      case Unbound() => Long.MinValue
-      case EmptyBound() => sys.error("impossible!")
+object AsZ {
+  implicit val byteAsZ: AsZ[Byte] =
+    new AsZ[Byte] {
+      type Image = Z
+      def to(a: Byte): Image = Z(a)
+      def from(z: Image): Byte = z.toByte
+      def toz(a: Byte): Z = Z(a)
+      def fromz(z: Z): Option[Byte] = if (z.isValidByte) Some(z.toByte) else None
     }
-    val last = iv.upperBound match {
-      case Closed(y) => y
-      case Open(y) => y - 1L
-      case Unbound() => Long.MaxValue
-      case EmptyBound() => sys.error("impossible!")
-    }
-    (first, last)
-  }
 
-  def countableForIntervalSeq(seq: IntervalSeq[Long]): Countable[Long] = {
-    var size: Z = Z.zero
-    val ivbuf = mutable.ArrayBuffer.empty[Countable[Long]]
-    val szbuf = mutable.ArrayBuffer.empty[Z]
-    seq.intervalIterator.filter(_.nonEmpty).foreach { iv =>
-      val (first, last) = resolve(iv)
-      val sz = Z(last) - Z(first) + 1
-      size += sz
-      ivbuf += new CountableInterval(sz, first)
-      szbuf += size
+  implicit val shortAsZ: AsZ[Short] =
+    new AsZ[Short] {
+      type Image = Z
+      def to(a: Short): Image = Z(a)
+      def from(z: Image): Short = z.toShort
+      def toz(a: Short): Z = Z(a)
+      def fromz(z: Z): Option[Short] = if (z.isValidShort) Some(z.toShort) else None
     }
-    new CountableIntervalSeq(size, ivbuf.toArray, szbuf.toArray)
-  }
+
+  implicit val charAsZ: AsZ[Char] =
+    new AsZ[Char] {
+      type Image = Z
+      def to(a: Char): Image = Z(a)
+      def from(z: Image): Char = z.toChar
+      def toz(a: Char): Z = Z(a)
+      def fromz(z: Z): Option[Char] = if (z.isValidChar) Some(z.toChar) else None
+    }
+
+  implicit val intAsZ: AsZ[Int] =
+    new AsZ[Int] {
+      type Image = Z
+      def to(a: Int): Image = Z(a)
+      def from(z: Image): Int = z.toInt
+      def toz(a: Int): Z = Z(a)
+      def fromz(z: Z): Option[Int] = if (z.isValidInt) Some(z.toInt) else None
+    }
+
+  implicit val longAsZ: AsZ[Long] =
+    new AsZ[Long] {
+      type Image = Z
+      def to(a: Long): Image = Z(a)
+      def from(z: Image): Long = z.toLong
+      def toz(a: Long): Z = Z(a)
+      def fromz(z: Z): Option[Long] = if (z.isValidLong) Some(z.toLong) else None
+    }
+
+  implicit val bigIntAsZ: AsZ[BigInt] =
+    new AsZ[BigInt] {
+      type Image = Z
+      def to(a: BigInt): Image = Z(a)
+      def from(z: Image): BigInt = z.toBigInt
+      def toz(a: BigInt): Z = Z(a)
+      def fromz(z: Z): Option[BigInt] = Some(z.toBigInt)
+    }
+
+  implicit val safeLongAsZ: AsZ[Z] =
+    new AsZ[Z] {
+      type Image = Z
+      def to(a: Z): Image = a
+      def from(z: Image): Z = z
+      def toz(a: Z): Z = a
+      def fromz(z: Z): Option[Z] = Some(z)
+    }
 }
 
 sealed trait Refinement[T, P] {
@@ -83,9 +103,25 @@ sealed trait Refinement[T, P] {
       }
     recurse(this)
   }
+
+  def toCountable(implicit ev: Order[T], asz: AsZ[T]): Countable[Refined[T, P]] = {
+    implicit val o: Order[asz.Image] = ???
+    //val isq: IntervalSeq[Z] =
+    val isq: IntervalSeq[asz.Image] =
+      toIntervalSeq(ev)
+        .intervalIterator
+        //.map(iv => IntervalSeq(iv.mapBounds(asz.toz)))
+        .map(iv => IntervalSeq(iv.mapBounds(asz.to(_))))
+        .reduceLeft(_ | _)
+    // Intervals.CountableIntervalSeq(isq)
+    //   .translate(asz.fromz(_).get.asInstanceOf[Refined[T, P]])
+    ???
+  }
 }
 
 object Refinement {
+
+  implicit def apply[T, P](implicit ev: Refinement[T, P]): Refinement[T, P] = ev
 
   case class Equal[T, N](wn: W[N, T]) extends Refinement[T, g.Equal[N]]
   case class Less[T, N](wn: W[N, T]) extends Refinement[T, n.Less[N]]
@@ -108,4 +144,25 @@ object Refinement {
 
   implicit def forOr[T, P, Q](implicit rp: Refinement[T, P], rq: Refinement[T, Q]): Refinement[T, b.Or[P, Q]] =
     Or(rp, rq)
+
+
+  type G0 = n.Greater[L.`0`.T]
+  type G50 = n.Greater[L.`0`.T]
+  type G300 = n.Greater[L.`0`.T]
+  type L100 = n.Less[L.`100`.T]
+  type L150 = n.Less[L.`150`.T]
+  type L350 = n.Less[L.`350`.T]
+
+  type P1 = b.And[G0, L100]
+  type P2 = b.And[G50, L150]
+  type P3 = b.And[G300, L350]
+
+  type X = b.Or[b.Or[P1, P2], P3]
+  type Y = b.Or[b.Or[P1, P2], P3]
+
+  val cx = Refinement[Int, X].toCountable
+  val cy = Refinement[Int, Y].toCountable
+
+  val x: Refined[Int, X] = 16
+  val y: Refined[Int, Y] = 83
 }
