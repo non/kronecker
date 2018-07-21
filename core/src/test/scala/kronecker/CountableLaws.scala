@@ -246,6 +246,11 @@ object CHList2 extends CountableTests[IsCountableZ :: HNil]
 object CHList3 extends CountableTests[IsCountable256 :: IsCountableZ :: HNil]
 object CHList4 extends CountableTests[IsCountableZ :: IsCountable256 :: HNil]
 
+object CEBB extends CountableTests[Either[IsCountable256, IsCountable256]]
+object CEBZ extends CountableTests[Either[IsCountable256, IsCountableZ]]
+object CEZB extends CountableTests[Either[IsCountableZ, IsCountable256]]
+object CEZZ extends CountableTests[Either[IsCountableZ, IsCountableZ]]
+
 // generic indexable
 
 object IsIndexable0 extends WeakIndexableTests[IsIndexable0]
