@@ -83,10 +83,11 @@ object Diagonal {
    *
    * The sequences of these values are:
    *
-   * dim=1: 1 1  1  1  1  1  1   1   1
-   * dim=2: 1 2  3  4  5  6  7   8   9
-   * dim=3: 1 3  6 10 15 21 28  36  45
-   * dim=4: 1 4 10 16 31 52 80 116 161
+   * dim=1: 1 1  1  1  1   1   1   1   1
+   * dim=2: 1 2  3  4  5   6   7   8   9
+   * dim=3: 1 3  6 10 15  21  28  36  45
+   * dim=4: 1 4 10 20 35  56  84 120 165
+   * dim=5: 1 5 15 35 70 126 210 330 495
    * ...
    *
    * Notice that the kth value at dimenion d is equal to the sum of
@@ -142,8 +143,8 @@ object Diagonal {
     @tailrec def ascend(i: Int): Int =
       if (p(Z.one << i)) ascend(i + 1) else i
 
-    // we know that p(1 << ceil) is, but that p(1 << (ceil - 1)) is
-    // true. so let's start adding bits back in (from highest to
+    // we know that p(1 << ceil) is false, but that p(1 << (ceil - 1))
+    // is true. so let's start adding bits back in (from highest to
     // lowest) to construct the largest value where p is still true
     @tailrec def descend(x: Z, i: Int): Z =
       if (i < 0) x else {
