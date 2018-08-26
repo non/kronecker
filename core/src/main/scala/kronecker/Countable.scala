@@ -73,12 +73,45 @@ trait Countable[A] { self =>
 
   /**
    * Drop the first k items from the countable instance.
+   *
+   * Note that the result is not a lawful countable instance, unless
+   * the subset of A that remains is translated onto a new type.
    */
   def drop(k: Int): Countable[A] =
     new Countable[A] {
       require(k >= 0)
       def cardinality: Card = self.cardinality - k
       def get(index: Z): Option[A] = self.get(index + k)
+    }
+
+  /**
+   * Permuate this countable's enumeration into a different
+   * enumeration.
+   *
+   * This method uses a permutation on A values (the values being
+   * counted).
+   */
+  def permute(p: Permutation[A]): Countable[A] =
+    new Countable[A] {
+      def cardinality: Card =
+        self.cardinality
+      def get(index: Z): Option[A] =
+        self.get(index).map(p(_))
+    }
+
+  /**
+   * Permuate this countable's enumeration into a different
+   * enumeration.
+   *
+   * This method uses a permutation on numbers (the indices being
+   * enumerated).
+   */
+  def copermute(p: Permutation[Z]): Countable[A] =
+    new Countable[A] {
+      def cardinality: Card =
+        self.cardinality
+      def get(index: Z): Option[A] =
+        self.get(p(index))
     }
 }
 
@@ -122,7 +155,7 @@ object Countable extends Countable1 {
     }
 
   /**
-   * 
+   * Produce a countable with exactly one value.
    */
   def singleton[A](a: A): Indexable[A] =
     new Indexable[A] {
@@ -357,6 +390,12 @@ abstract class Countable0 {
 trait Indexable[A] extends Countable[A] { self =>
   def index(a: A): Z
 
+  /**
+   * Map an Indexable[A] into an Indexable[B].
+   *
+   * We require a bijection (represented as `f` and `g`), i.e. an
+   * invertible function.
+   */
   def imap[B](f: A => B)(g: B => A): Indexable[B] =
     new Indexable[B] {
       def cardinality: Card = self.cardinality
@@ -365,7 +404,10 @@ trait Indexable[A] extends Countable[A] { self =>
     }
 
   /**
-   * Drop the first k items from the countable instance.
+   * Drop the first k items from the indexable instance.
+   *
+   * Note that the result is not a lawful countable instance, unless
+   * the subset of A that remains is translated onto a new type.
    */
   override def drop(k: Int): Indexable[A] =
     new Indexable[A] {
@@ -374,18 +416,45 @@ trait Indexable[A] extends Countable[A] { self =>
       def get(index: Z): Option[A] = self.get(index + k)
       def index(a: A): Z = self.index(a) - k
     }
+
+  /**
+   * Permuate this indexable's enumeration into a different
+   * enumeration.
+   *
+   * This method uses a permutation on A values (the values being
+   * counted).
+   */
+  override def permute(p: Permutation[A]): Indexable[A] =
+    new Indexable[A] {
+      def cardinality: Card =
+        self.cardinality
+      def get(index: Z): Option[A] =
+        self.get(index).map(p(_))
+      def index(a: A): Z =
+        self.index(p(a))
+    }
+
+  /**
+   * Permuate this indexable's enumeration into a different
+   * enumeration.
+   *
+   * This method uses a permutation on numbers (the indices being
+   * enumerated).
+   */
+  override def copermute(p: Permutation[Z]): Indexable[A] =
+    new Indexable[A] {
+      def cardinality: Card =
+        self.cardinality
+      def get(index: Z): Option[A] =
+        self.get(p(index))
+      def index(a: A): Z =
+        p(self.index(a))
+    }
 }
 
 object Indexable {
 
   def apply[A](implicit ev: Indexable[A]): Indexable[A] = ev
-
-  // def singleton[A](a: A): Indexable[A] =
-  //   new Indexable[A] {
-  //     def cardinality: Card = Card.one
-  //     def get(index: Z): Option[A] = if (index.isZero) Some(a) else None
-  //     def index(a: A): Z = Z.zero
-  //   }
 
   case class SignedRange[A](cardinality: Card, f: Z => A)(g: A => Z) extends Indexable[A] {
     def get(index: Z): Option[A] =

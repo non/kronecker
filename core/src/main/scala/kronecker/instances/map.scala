@@ -41,3 +41,5 @@ class CMap[K, V](evk: Countable[K], evv: Countable[V], splitIndex: Z => (Z, Z)) 
     } else None
   }
 }
+
+// TODO Indexable[Map[K, V]]

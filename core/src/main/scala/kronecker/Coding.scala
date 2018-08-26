@@ -79,7 +79,6 @@ object Coding {
   /**
    * Read an unbounded natural number in the given byte coding.
    *
-   * The return value is `(valueRead, indexAfterReading)`.
    * The return value is `(indexAfterReading, valueRead)`.
    */
   def read(index: Z, mask: Int, k: Int): (Z, Z) = {
