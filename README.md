@@ -12,17 +12,17 @@
 
 ### Overview
 
-Kronecker is intended to be a library for enumerating all distinct
-values of types.
+Kronecker is for enumerating the distinct values of a given type.
 
 The `Countable[A]` type class provides a `get` method, which takes an
 index (given as a `spire.math.SafeLong`) and returns an `Option[A]`.
-The type class instance must be able to generate any possible `A`
-value (provided a large enough input number is provided).
+The countable instance must be able to generate any possible `A` value
+in principle (although the necessary index number and/or the resulting
+value might exceed the avilable memory of the JVM).
 
-The `Indexable[A]` type class extends `Countable[A]`, but also
-provides an `index` method, which takes an `A` value and returns its
-corresponding index such that `get(index) == Some(a)`.
+The `Indexable[A]` type class extends `Countable[A]`, providing an
+additional `index` method, which takes an `A` value and returns its
+corresponding index such that `get(index(a)) == Some(a)`.
 
 ### Example
 
@@ -49,6 +49,7 @@ c0.get(i)
 //          -20, 99, -66, 105, 29, -1, -2, -2, -2, -2, -2, -2, -2, -2,
 //          -2, -2, -2, -2, -2, -2, -2, -1))
 
+case class Foo(x: Boolean, y: List[Int], z: String)
 
 val c1 = Countable[(Z, Z, Z, Z, Z, Z, Z, Z, Z)]
 
@@ -129,8 +130,16 @@ then the cardinality of a `Set[A]` is *2ˣ*.
 
 ### Future work
 
-We're missing `Indexable` instances for `Map`, as well as `Countable`
-instances for functions with infinite ranges.
+We're missing `Indexable` instances for `Map`.
+
+The functions we generate are just glorified maps that are "mostly
+zero" everywhere else. There are too many functions to ever get "good"
+performance over large cardinalities, but we could experiment with
+different orderings.
+
+Since our indices are never negative, it's arguable we should be using
+a natural number type instead of `SafeLong`. For performance reasons
+I'm not eager to make this change.
 
 There is some work-in-progress around actually using `Countable[A]` to
 power property-based tests (e.g. ScalaCheck). This might end up being
