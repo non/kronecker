@@ -14,6 +14,26 @@ trait Bounded[A] {
 
 object Bounded {
 
+  implicit def boundedForByte: Bounded[Byte] =
+    new Bounded[Byte] {
+      def upper: Byte = Byte.MaxValue
+      def next(n: Byte): Byte = (n + 1).toByte
+      def prev(n: Byte): Byte = (n - 1).toByte
+      def lower: Byte = Byte.MinValue
+      def toZ(n: Byte): Z = Z(n)
+      def offset(first: Byte, distance: Z): Byte = (first + distance.toInt).toByte
+    }
+
+  implicit def boundedForShort: Bounded[Short] =
+    new Bounded[Short] {
+      def upper: Short = Short.MaxValue
+      def next(n: Short): Short = (n + 1).toShort
+      def prev(n: Short): Short = (n - 1).toShort
+      def lower: Short = Short.MinValue
+      def toZ(n: Short): Z = Z(n)
+      def offset(first: Short, distance: Z): Short = (first + distance.toInt).toShort
+    }
+
   implicit def boundedForInt: Bounded[Int] =
     new Bounded[Int] {
       def upper: Int = Int.MaxValue
