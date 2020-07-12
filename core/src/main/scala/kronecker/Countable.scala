@@ -278,6 +278,35 @@ object Countable extends Countable1 {
   implicit val cfloat: Indexable[Float] =
     cint.imap(intBitsToFloat)(floatToRawIntBits)
 
+  /**
+   * Double precision floating point
+   *
+   * sign: 1-bit
+   * exponent: 11-bits
+   * mantissa: 52-bits (with an implied leading one)
+   *
+   * value = (1 - 2*sign) * 2^(e - 1023) * (1+(mantissa/2^52))
+   *
+   * e=0x000 -> if (m=0) +/- zero else subnormal numbers
+   * e=0x7ff -> if (m=0) +/- inf else NaN
+   *
+   * one future proposed enumeration:
+   *
+   *   0:   0.0   (0,0,0)
+   *   1:   1.0   (0,1023,0)
+   *   2:  -1.0   (1,1023,0)
+   *   3:   0.5   (0,1023,512)
+   *   4:  -0.5   (1,1023,512)
+   *   5:   0.25  (0,1023,256)
+   *   6:  -0.25  (1,1023,256)
+   *   7:   0.75  (0,1023,768)
+   *   8:  -0.75  (1,1023,768)
+   *   ...
+   *
+   * alternately we could exhaust the powers of 2 at one mantissa
+   * before moving on, or interleave these strategies.
+   */
+
   implicit val cdouble: Indexable[Double] =
     clong.imap(longBitsToDouble)(doubleToRawLongBits)
 
