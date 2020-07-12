@@ -10,6 +10,7 @@ lazy val kroneckerSettings = Seq(
     "-feature" ::
     "-deprecation" ::
     "-unchecked" ::
+    "-Ywarn-unused:imports" ::
     Nil,
   libraryDependencies ++=
     "org.typelevel" %% "spire" % "0.14.1" ::

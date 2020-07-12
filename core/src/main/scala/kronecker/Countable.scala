@@ -3,7 +3,6 @@ package kronecker
 import java.lang.Double.{doubleToRawLongBits, longBitsToDouble}
 import java.lang.Float.{floatToRawIntBits, intBitsToFloat}
 import kronecker.instances._
-import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.reflect.ClassTag
 import shapeless._

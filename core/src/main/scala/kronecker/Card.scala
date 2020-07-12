@@ -1,6 +1,6 @@
 package kronecker
 
-import spire.algebra.{Order, Rig}
+import spire.algebra.Rig
 
 /**
  * Represents the cardinality of a set.
