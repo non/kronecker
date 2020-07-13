@@ -6,14 +6,14 @@ import spire.math.extras.interval.IntervalSeq
 
 object Intervals {
 
-  class CountableInterval[A](size: Z, first: A)(implicit b: Bounded[A]) extends Countable[A] {
+  class CountableInterval[A](size: Z, first: A, b: Bounded[A]) extends Countable[A] {
     val cardinality: Card =
       Card(size)
     def get(index: Z): Option[A] =
       if (cardinality.contains(index)) Some(b.offset(first, index)) else None
   }
 
-  class CountableIntervalSeq[A](size: Z, ivs: Array[Countable[A]], offsets: Array[Z])(implicit b: Bounded[A]) extends Countable[A] {
+  class CountableIntervalSeq[A](size: Z, ivs: Array[Countable[A]], offsets: Array[Z]) extends Countable[A] {
     val cardinality: Card =
       Card(size)
 
@@ -55,7 +55,7 @@ object Intervals {
       val sz = b.distance(first, last)
       ofbuf += size
       size += sz
-      ivbuf += new CountableInterval(sz, first)
+      ivbuf += new CountableInterval(sz, first, b)
     }
     new CountableIntervalSeq(size, ivbuf.toArray, ofbuf.toArray)
   }

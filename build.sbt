@@ -7,9 +7,14 @@ lazy val kroneckerSettings = Seq(
   scalaVersion := "2.12.4",
   crossScalaVersions := Seq("2.11.12", "2.12.4"),
   scalacOptions ++=
-    "-feature" ::
     "-deprecation" ::
+    "-encoding" :: "UTF-8" ::
+    "-feature" ::
     "-unchecked" ::
+    "-Xlint" ::
+    "-Ywarn-dead-code" ::
+    //"-Ywarn-numeric-widen" ::
+    "-Ywarn-value-discard" ::
     "-Ywarn-unused:imports" ::
     Nil,
   libraryDependencies ++=
