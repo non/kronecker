@@ -1,5 +1,4 @@
 package kronecker
-package refined
 
 trait Bounded[A] {
   def upper: A
@@ -8,6 +7,7 @@ trait Bounded[A] {
   def lower: A
   def toZ(a: A): Z
   def offset(first: A, distance: Z): A
+
   final def distance(first: A, last: A): Z =
     toZ(last) - toZ(first) + Z.one
 }

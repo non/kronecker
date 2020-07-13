@@ -1,68 +1,62 @@
 package kronecker
 
-import spire.algebra.Order
+import scala.collection.mutable
 import spire.math.{Interval, Searching}
 import spire.math.extras.interval.IntervalSeq
-import spire.implicits._
-
-import scala.collection.mutable
 
 object Intervals {
 
-  case class AtOrAbove(x: Z) extends Countable[Z] {
-    val cardinality: Card = Card.infinite
-    def get(index: Z): Option[Z] = Some(x + index)
+  class CountableInterval[A](size: Z, first: A)(implicit b: Bounded[A]) extends Countable[A] {
+    val cardinality: Card =
+      Card(size)
+    def get(index: Z): Option[A] =
+      if (cardinality.contains(index)) Some(b.offset(first, index)) else None
   }
 
-  case class AtOrBelow(y: Z) extends Countable[Z] {
-    val cardinality: Card = Card.infinite
-    def get(index: Z): Option[Z] = Some(y - index)
-  }
+  class CountableIntervalSeq[A](size: Z, ivs: Array[Countable[A]], offsets: Array[Z])(implicit b: Bounded[A]) extends Countable[A] {
+    val cardinality: Card =
+      Card(size)
 
-  case class Within(first: Z, last: Z) extends Countable[Z] {
-    require(first <= last)
-    val cardinality: Card = Card(last - first + 1)
-    def get(index: Z): Option[Z] =
-      if (cardinality.contains(index)) Some(first + index) else None
-  }
-
-  object CountableInterval {
-    def apply(iv: Interval[Z]): Countable[Z] = {
-
-      def close(iv: Interval[Z]): (Option[Z], Option[Z])= {
-        import spire.math.interval._
-        val first = iv.lowerBound match {
-          case Closed(x) => Some(x)
-          case Open(x) => Some(x + 1)
-          case Unbound() => None
-          case EmptyBound() => sys.error("impossible!")
-        }
-        val last = iv.upperBound match {
-          case Closed(y) => Some(y)
-          case Open(y) => Some(y - 1)
-          case Unbound() => None
-          case EmptyBound() => sys.error("impossible!")
-        }
-        (first, last)
+    def get(index: Z): Option[A] =
+      if (cardinality.contains(index)) {
+        val i = Searching.search(offsets, index)
+        val j = if (i >= 0) i else -(i + 1) - 1
+        val c = ivs(j)
+        val k = index - offsets(j)
+        c.get(k)
+      } else {
+        None
       }
-
-      if (iv.isEmpty) Countable.empty[Z]
-      else close(iv) match {
-        case (Some(x), Some(y)) => Within(x, y)
-        case (Some(x), None) => AtOrAbove(x)
-        case (None, Some(y)) => AtOrBelow(y)
-        case (None, None) => Countable[Z]
-      }
-    }
   }
 
-  object CountableIntervalSeq {
-    def apply(seq: IntervalSeq[Z]): Countable[Z] = {
-      val cs = seq.intervalIterator
-        .filter(_.nonEmpty)
-        .map(CountableInterval(_))
-        .toList
-      Countable.oneOf(cs: _*)
+  def resolve[A](iv: Interval[A])(implicit b: Bounded[A]): (A, A) = {
+    import spire.math.interval._
+    val first = iv.lowerBound match {
+      case Closed(x) => x
+      case Open(x) => b.next(x)
+      case Unbound() => b.lower
+      case EmptyBound() => sys.error("impossible!")
     }
+    val last = iv.upperBound match {
+      case Closed(y) => y
+      case Open(y) => b.prev(y)
+      case Unbound() => b.upper
+      case EmptyBound() => sys.error("impossible!")
+    }
+    (first, last)
+  }
+
+  def countableForIntervalSeq[T](seq: IntervalSeq[T])(implicit b: Bounded[T]): Countable[T] = {
+    var size: Z = Z.zero
+    val ivbuf = mutable.ArrayBuffer.empty[Countable[T]]
+    val ofbuf = mutable.ArrayBuffer.empty[Z]
+    seq.intervalIterator.filter(_.nonEmpty).foreach { iv =>
+      val (first, last) = resolve(iv)
+      val sz = b.distance(first, last)
+      ofbuf += size
+      size += sz
+      ivbuf += new CountableInterval(sz, first)
+    }
+    new CountableIntervalSeq(size, ivbuf.toArray, ofbuf.toArray)
   }
 }
