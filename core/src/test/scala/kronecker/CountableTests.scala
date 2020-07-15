@@ -1,10 +1,7 @@
 package kronecker
 
-import org.scalacheck.{Arbitrary, Prop, Properties}
-import org.scalacheck.Arbitrary.arbitrary
-import org.scalacheck.Prop.{forAll, BooleanOperators}
-import scala.reflect.runtime.universe.TypeTag
-import shapeless._
+import org.scalacheck.Properties
+import org.scalacheck.Prop.forAll
 
 import Testing._
 

@@ -1,7 +1,6 @@
 package kronecker
 
-import org.scalacheck.{Arbitrary, Prop, Properties}
-import org.scalacheck.Arbitrary.arbitrary
+import org.scalacheck.{Arbitrary, Properties}
 import org.scalacheck.Prop.{forAll, BooleanOperators}
 import scala.reflect.runtime.universe.TypeTag
 import shapeless._

@@ -275,8 +275,9 @@ object Countable extends Countable1 {
   // TODO: the floating point streams could be in a MUCH nicer order;
   // the current order is pretty much nonsense.
 
-  implicit val cfloat: Indexable[Float] =
+  implicit def cfloat: Indexable[Float] =
     cint.imap(intBitsToFloat)(floatToRawIntBits)
+    //IndexableFloat
 
   /**
    * Double precision floating point
@@ -307,8 +308,9 @@ object Countable extends Countable1 {
    * before moving on, or interleave these strategies.
    */
 
-  implicit val cdouble: Indexable[Double] =
+  implicit def cdouble: Indexable[Double] =
     clong.imap(longBitsToDouble)(doubleToRawLongBits)
+    //IndexableDouble
 
   implicit val cbigInt: Indexable[BigInt] =
     cz.imap(_.toBigInt)(Z(_))

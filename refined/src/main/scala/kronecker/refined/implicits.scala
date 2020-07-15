@@ -28,7 +28,7 @@ object implicits {
     o: Order[A]
   ): Countable[Refined[A, R]] =
     new Countable[Refined[A, R]] {
-      val c = Intervals.countableForIntervalSeq(p.toIntervalSeq)
+      val c = Intervals.CountableIntervalSeq(p.toIntervalSeq)
       def cardinality =
         c.cardinality
       def get(index: Z): Option[Refined[A, R]] =

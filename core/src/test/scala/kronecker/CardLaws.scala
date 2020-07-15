@@ -1,6 +1,6 @@
 package kronecker
 
-import org.scalacheck.{Arbitrary, Properties}
+import org.scalacheck.Properties
 import org.scalacheck.Prop.forAll
 
 import Testing._

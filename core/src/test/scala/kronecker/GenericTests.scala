@@ -1,7 +1,6 @@
 package kronecker
 
 import org.scalacheck.Properties
-import shapeless._
 
 object GenericTests extends Properties("Generic") {
 

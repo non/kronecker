@@ -75,7 +75,7 @@ case class Permutation[A] private (m: Map[A, A]) {
     if (x0 == y0) this
     else Permutation(up(up(m, x0, this(y0)), y0, this(x0)))
 
-  private def up[A](m: Map[A, A], k: A, v: A): Map[A, A] =
+  private def up(m: Map[A, A], k: A, v: A): Map[A, A] =
     if (k == v) m - k
     else m.updated(k, v)
 }

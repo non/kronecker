@@ -2,7 +2,6 @@ package kronecker
 
 import org.scalacheck.{Gen, Properties}
 import org.scalacheck.Prop.forAll
-import scala.annotation.tailrec
 
 object PermutationTests extends Properties("Diagonal") {
 
