@@ -1,5 +1,7 @@
 package kronecker
 
+import java.lang.Double.{isNaN => doubleNaN}
+import java.lang.Float.{isNaN => floatNaN}
 import org.scalacheck.{Arbitrary, Properties}
 import org.scalacheck.Prop.{forAll, BooleanOperators}
 import scala.reflect.runtime.universe.TypeTag
@@ -9,8 +11,13 @@ import Testing._
 
 trait CountableLaws[A] { self: Properties =>
 
+  implicit def equiv: Equiv[A]
+
   def ev: Countable[A]
   def tt: TypeTag[A]
+
+  def eqv[B](b1: B, b2: B)(implicit eb: Equiv[B]): Boolean =
+    eb.equiv(b1, b2)
 
   val card = ev.cardinality
 
@@ -24,7 +31,8 @@ trait CountableLaws[A] { self: Properties =>
       val (o1, o2) = (ev.get(i1), ev.get(i2))
       val res = (card.contains(i1), card.contains(i2)) match {
         case (true, true) =>
-          (o1 == o2) == (i1 == i2)
+          //(o1 == o2) == (i1 == i2)
+          eqv(o1, o2) == (i1 == i2)
         case (true, false) =>
           o1.isDefined && o2.isEmpty
         case (false, true) =>
@@ -86,7 +94,8 @@ trait StrongIndexableLaws[A] extends WeakIndexableLaws[A] { self: Properties =>
     forAll { (a: A) =>
       val i = ev.index(a)
       val o = ev.get(i)
-      val ok = o == Option(a)
+      //val ok = o == Option(a)
+      val ok = eqv(o, Option(a))
       if (!ok) println(s"a=$a i=$i o=$o")
       ok
     }
@@ -95,20 +104,37 @@ trait StrongIndexableLaws[A] extends WeakIndexableLaws[A] { self: Properties =>
     forAll { (a1: A, a2: A) =>
       val i1 = ev.index(a1)
       val i2 = ev.index(a2)
-      val ok = (i1 == i2) == (a1 == a2)
+      //val ok = (i1 == i2) == (a1 == a2)
+      val ok = (i1 == i2) == eqv(a1, a2)
       if (!ok) println(s"a1=$a1, a2=$a2, i1=$i1, i2=$i2")
       ok
     }
 }
 
-abstract class CountableTests[A](implicit val ev: Countable[A], val tt: TypeTag[A])
+abstract class CountableTests[A](implicit val equiv: Equiv[A], val ev: Countable[A], val tt: TypeTag[A])
     extends Properties(s"CountableTests[${tt.tpe}]") with CountableLaws[A]
 
-abstract class WeakIndexableTests[A](implicit val ev: Indexable[A], val tt: TypeTag[A])
+abstract class WeakIndexableTests[A](implicit val equiv: Equiv[A], val ev: Indexable[A], val tt: TypeTag[A])
     extends Properties(s"WeakIndexableTests[${tt.tpe}]") with WeakIndexableLaws[A]
 
-abstract class StrongIndexableTests[A](implicit val ev: Indexable[A], val arb: Arbitrary[A], val tt: TypeTag[A])
+abstract class StrongIndexableTests[A](implicit val equiv: Equiv[A], val ev: Indexable[A], val arb: Arbitrary[A], val tt: TypeTag[A])
     extends Properties(s"StrongIndexableTests[${tt.tpe}]") with StrongIndexableLaws[A]
+
+object Overloads {
+  implicit val nanEquivDouble: Equiv[Double] =
+    new Equiv[Double] {
+      def equiv(x: Double, y: Double): Boolean =
+        if (doubleNaN(x)) doubleNaN(y) else x == y
+    }
+
+  implicit val nanEquivFloat: Equiv[Float] =
+    new Equiv[Float] {
+      def equiv(x: Float, y: Float): Boolean =
+        if (floatNaN(x)) floatNaN(y) else x == y
+    }
+}
+
+import Overloads._
 
 object CNothingLaws extends CountableTests[Nothing]
 object CUnitLaws extends StrongIndexableTests[Unit]
@@ -118,8 +144,8 @@ object CShortLaws extends StrongIndexableTests[Short]
 object CCharLaws extends StrongIndexableTests[Char]
 object CIntLaws extends StrongIndexableTests[Int]
 object CLongLaws extends StrongIndexableTests[Long]
-// object CFloatLaws extends StrongIndexableTests[Float] // NaN != NaN
-// object CDoubleLaws extends StrongIndexableTests[Double] // NaN != NaN
+object CFloatLaws extends StrongIndexableTests[Float] // be careful, NaN != NaN
+object CDoubleLaws extends StrongIndexableTests[Double] // be careful, NaN != NaN
 object CZLaws extends StrongIndexableTests[Z]
 object CStringLaws extends StrongIndexableTests[String]
 
