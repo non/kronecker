@@ -4,8 +4,8 @@ lazy val kroneckerSettings = Seq(
   organization := "org.spire-math",
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
   homepage := Some(url("http://github.com/non/kronecker")),
-  scalaVersion := "2.12.4",
-  crossScalaVersions := Seq("2.11.12", "2.12.4"),
+  scalaVersion := "2.12.12",
+  crossScalaVersions := Seq("2.11.12", "2.12.12"),
   scalacOptions ++=
     "-deprecation" ::
     "-encoding" :: "UTF-8" ::
@@ -18,10 +18,11 @@ lazy val kroneckerSettings = Seq(
     "-Ywarn-unused:imports" ::
     Nil,
   libraryDependencies ++=
-    "org.typelevel" %% "spire" % "0.14.1" ::
-    "org.typelevel" %% "spire-extras" % "0.14.1" ::
+    "org.scala-lang" % "scala-reflect" % scalaVersion.value ::
+    "org.typelevel" %% "spire" % "0.17.0" ::
+    "org.typelevel" %% "spire-extras" % "0.17.0" ::
     "com.chuusai" %% "shapeless" % "2.3.3" ::
-    "org.scalacheck" %% "scalacheck" % "1.13.5" % "test" ::
+    "org.scalacheck" %% "scalacheck" % "1.15.0" % "test" ::
     Nil,
   //scalaJSStage in Global := FastOptStage, //FIXME
   releaseCrossBuild := true,

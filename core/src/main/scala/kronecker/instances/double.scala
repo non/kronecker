@@ -44,7 +44,10 @@ object IndexableFloat extends Indexable[Float] {
       None
     }
 
-  def index(n: Float): Z = ???
+  def index(n: Float): Z = {
+    val _ = floatToRawIntBits(0F)
+    ???
+  }
 }
 
 
@@ -88,5 +91,8 @@ object IndexableDouble extends Indexable[Double] {
       None
     }
 
-  def index(n: Double): Z = ???
+  def index(n: Double): Z = {
+    val _ = doubleToRawLongBits(0.0)
+    ???
+  }
 }

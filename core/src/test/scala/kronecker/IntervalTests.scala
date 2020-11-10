@@ -1,6 +1,6 @@
 package kronecker
 
-import spire.implicits._
+//import spire.implicits._
 import spire.math.Interval
 import spire.math.extras.interval.IntervalSeq
 

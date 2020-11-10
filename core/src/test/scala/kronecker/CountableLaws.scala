@@ -1,9 +1,9 @@
 package kronecker
 
-import java.lang.Double.{isNaN => doubleNaN}
-import java.lang.Float.{isNaN => floatNaN}
-import org.scalacheck.{Arbitrary, Properties}
-import org.scalacheck.Prop.{forAll, BooleanOperators}
+import java.lang.Double.doubleToRawLongBits
+import java.lang.Float.floatToRawIntBits
+import org.scalacheck.{Arbitrary, Prop, Properties}
+import org.scalacheck.Prop.{forAllNoShrink => forAll}
 import scala.reflect.runtime.universe.TypeTag
 import shapeless._
 
@@ -29,19 +29,32 @@ trait CountableLaws[A] { self: Properties =>
   property("get(i) = get(j) iff i = j") = {
     forAll { (i1: Z, i2: Z) =>
       val (o1, o2) = (ev.get(i1), ev.get(i2))
-      val res = (card.contains(i1), card.contains(i2)) match {
+      (card.contains(i1), card.contains(i2)) match {
         case (true, true) =>
-          //(o1 == o2) == (i1 == i2)
-          eqv(o1, o2) == (i1 == i2)
+          val lhs = eqv(o1.get, o2.get)
+          val rhs = (i1 == i2)
+          val res = lhs == rhs
+          if (!res) println(s"card=$card i1=$i1 i2=$i2 o1=$o1 o2=$o2 lhs=$lhs rhs=$rhs res=$res")
+          res
         case (true, false) =>
-          o1.isDefined && o2.isEmpty
+          val lhs = o1.isDefined
+          val rhs = o2.isEmpty
+          val res = lhs && rhs
+          if (!res) println(s"card=$card i1=$i1 i2=$i2 o1=$o1 o2=$o2 lhs=$lhs rhs=$rhs res=$res")
+          res
         case (false, true) =>
-          o1.isEmpty && o2.isDefined
+          val lhs = o1.isEmpty
+          val rhs = o2.isDefined
+          val res = lhs && rhs
+          if (!res) println(s"card=$card i1=$i1 i2=$i2 o1=$o1 o2=$o2 lhs=$lhs rhs=$rhs res=$res")
+          res
         case (false, false) =>
-          o1 == None && o2 == None
+          val lhs = o1.isEmpty
+          val rhs = o2.isEmpty
+          val res = lhs && rhs
+          if (!res) println(s"card=$card i1=$i1 i2=$i2 o1=$o1 o2=$o2 lhs=$lhs rhs=$rhs res=$res")
+          res
       }
-      if (!res) println(s"card=$card i1=$i1 i2=$i2 o1=$o1 o2=$o2 res=$res")
-      res
     }
   }
 }
@@ -71,7 +84,7 @@ trait WeakIndexableLaws[A] extends CountableLaws[A] { self: Properties =>
         s"i=$i (${repr(i)}) a=$a -> i2=$n (${repr(n)}) a2=$a2"
       }
       .toList
-    (ns.isEmpty: Boolean) :| s"$ns should be empty"
+    Prop(ns.isEmpty) :| s"$ns should be empty"
   }
 
 
@@ -121,16 +134,19 @@ abstract class StrongIndexableTests[A](implicit val equiv: Equiv[A], val ev: Ind
     extends Properties(s"StrongIndexableTests[${tt.tpe}]") with StrongIndexableLaws[A]
 
 object Overloads {
+
+  // we want particular bit patterns of NaNs to equal themselves
+
   implicit val nanEquivDouble: Equiv[Double] =
     new Equiv[Double] {
       def equiv(x: Double, y: Double): Boolean =
-        if (doubleNaN(x)) doubleNaN(y) else x == y
+        doubleToRawLongBits(x) == doubleToRawLongBits(y)
     }
 
   implicit val nanEquivFloat: Equiv[Float] =
     new Equiv[Float] {
       def equiv(x: Float, y: Float): Boolean =
-        if (floatNaN(x)) floatNaN(y) else x == y
+        floatToRawIntBits(x) == floatToRawIntBits(y)
     }
 }
 
@@ -144,8 +160,8 @@ object CShortLaws extends StrongIndexableTests[Short]
 object CCharLaws extends StrongIndexableTests[Char]
 object CIntLaws extends StrongIndexableTests[Int]
 object CLongLaws extends StrongIndexableTests[Long]
-object CFloatLaws extends StrongIndexableTests[Float] // be careful, NaN != NaN
-object CDoubleLaws extends StrongIndexableTests[Double] // be careful, NaN != NaN
+object CFloatLaws extends StrongIndexableTests[Float]
+object CDoubleLaws extends StrongIndexableTests[Double]
 object CZLaws extends StrongIndexableTests[Z]
 object CStringLaws extends StrongIndexableTests[String]
 
