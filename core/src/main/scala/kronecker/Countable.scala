@@ -46,14 +46,14 @@ trait Countable[A] { self =>
   def iterator(): Iterator[A] =
     Iterator.from(0).map(self.get(_)).takeWhile(_.isDefined).map(_.get)
 
-  /**
-   * Lazy stream of all A values.
-   *
-   * Be careful! Scala memoizes streams, so if you hang onto the head
-   * of this stream you could end up using a lot of memory.
-   */
-  def stream: Stream[A] =
-    Stream.from(0).map(self.get(_)).takeWhile(_.isDefined).map(_.get)
+  // /**
+  //  * Lazy stream of all A values.
+  //  *
+  //  * Be careful! Scala memoizes streams, so if you hang onto the head
+  //  * of this stream you could end up using a lot of memory.
+  //  */
+  // def stream: Stream[A] =
+  //   Stream.from(0).map(self.get(_)).takeWhile(_.isDefined).map(_.get)
 
   /**
    * Produce a new Countable[B] instance by translating this one using
@@ -324,11 +324,11 @@ object Countable extends Countable1 {
   implicit def nvector[A](implicit ev: Indexable[A]): Indexable[Vector[A]] =
     NList(ev).imap(_.toVector)(_.toList)
 
-  // Stream
-  implicit def cstream[A](implicit ev: Countable[A]): Countable[Stream[A]] =
-    CList(ev).translate(_.toStream)
-  implicit def nstream[A](implicit ev: Indexable[A]): Indexable[Stream[A]] =
-    NList(ev).imap(_.toStream)(_.toList)
+  // // Stream
+  // implicit def cstream[A](implicit ev: Countable[A]): Countable[Stream[A]] =
+  //   CList(ev).translate(_.toStream)
+  // implicit def nstream[A](implicit ev: Indexable[A]): Indexable[Stream[A]] =
+  //   NList(ev).imap(_.toStream)(_.toList)
 
   // Array
   implicit def carray[A: ClassTag](implicit ev: Countable[A]): Countable[Array[A]] =

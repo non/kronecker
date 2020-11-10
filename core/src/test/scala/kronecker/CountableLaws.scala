@@ -1,5 +1,6 @@
 package kronecker
 
+import cats.kernel.Eq
 import java.lang.Double.doubleToRawLongBits
 import java.lang.Float.floatToRawIntBits
 import org.scalacheck.{Arbitrary, Prop, Properties}
@@ -7,17 +8,34 @@ import org.scalacheck.Prop.{forAllNoShrink => forAll}
 import scala.reflect.runtime.universe.TypeTag
 import shapeless._
 
+// we need to avoid the long/double instances
+import cats.kernel.instances.boolean._
+import cats.kernel.instances.byte._
+import cats.kernel.instances.char._
+import cats.kernel.instances.either._
+import cats.kernel.instances.int._
+import cats.kernel.instances.list._
+import cats.kernel.instances.long._
+import cats.kernel.instances.map._
+import cats.kernel.instances.option._
+import cats.kernel.instances.set._
+import cats.kernel.instances.short._
+import cats.kernel.instances.string._
+import cats.kernel.instances.tuple._
+import cats.kernel.instances.unit._
+import cats.kernel.instances.vector._
+
 import Testing._
 
 trait CountableLaws[A] { self: Properties =>
 
-  implicit def equiv: Equiv[A]
+  implicit def equiv: Eq[A]
 
   def ev: Countable[A]
   def tt: TypeTag[A]
 
-  def eqv[B](b1: B, b2: B)(implicit eb: Equiv[B]): Boolean =
-    eb.equiv(b1, b2)
+  def eqv[B](b1: B, b2: B)(implicit eb: Eq[B]): Boolean =
+    eb.eqv(b1, b2)
 
   val card = ev.cardinality
 
@@ -124,33 +142,77 @@ trait StrongIndexableLaws[A] extends WeakIndexableLaws[A] { self: Properties =>
     }
 }
 
-abstract class CountableTests[A](implicit val equiv: Equiv[A], val ev: Countable[A], val tt: TypeTag[A])
+abstract class CountableTests[A](implicit val equiv: Eq[A], val ev: Countable[A], val tt: TypeTag[A])
     extends Properties(s"CountableTests[${tt.tpe}]") with CountableLaws[A]
 
-abstract class WeakIndexableTests[A](implicit val equiv: Equiv[A], val ev: Indexable[A], val tt: TypeTag[A])
+abstract class WeakIndexableTests[A](implicit val equiv: Eq[A], val ev: Indexable[A], val tt: TypeTag[A])
     extends Properties(s"WeakIndexableTests[${tt.tpe}]") with WeakIndexableLaws[A]
 
-abstract class StrongIndexableTests[A](implicit val equiv: Equiv[A], val ev: Indexable[A], val arb: Arbitrary[A], val tt: TypeTag[A])
+abstract class StrongIndexableTests[A](implicit val equiv: Eq[A], val ev: Indexable[A], val arb: Arbitrary[A], val tt: TypeTag[A])
     extends Properties(s"StrongIndexableTests[${tt.tpe}]") with StrongIndexableLaws[A]
 
-object Overloads {
+object EqInstances {
 
   // we want particular bit patterns of NaNs to equal themselves
 
-  implicit val nanEquivDouble: Equiv[Double] =
-    new Equiv[Double] {
-      def equiv(x: Double, y: Double): Boolean =
+  implicit val nanEqDouble: Eq[Double] =
+    new Eq[Double] {
+      def eqv(x: Double, y: Double): Boolean =
         doubleToRawLongBits(x) == doubleToRawLongBits(y)
     }
 
-  implicit val nanEquivFloat: Equiv[Float] =
-    new Equiv[Float] {
-      def equiv(x: Float, y: Float): Boolean =
+  implicit val nanEqFloat: Eq[Float] =
+    new Eq[Float] {
+      def eqv(x: Float, y: Float): Boolean =
         floatToRawIntBits(x) == floatToRawIntBits(y)
     }
+
+  implicit val eqNothing: Eq[Nothing] =
+    Eq.fromUniversalEquals
+
+  implicit val eqHNil: Eq[HNil] =
+    new Eq[HNil] {
+      def eqv(x: HNil, y: HNil): Boolean = true
+    }
+
+  implicit def eqHCons[A, H <: HList](implicit eqa: Eq[A], eqh: Eq[H]): Eq[A :: H] =
+    new Eq[A :: H] {
+      def eqv(x: A :: H, y: A :: H): Boolean =
+        eqa.eqv(x.head, y.head) && eqh.eqv(x.tail, y.tail)
+    }
+
+  implicit val eqCNil: Eq[CNil] =
+    new Eq[CNil] {
+      def eqv(x: CNil, y: CNil): Boolean = true
+    }
+
+  implicit def eqCCons[A, C <: Coproduct](implicit eqa: Eq[A], eqc: Eq[C]): Eq[A :+: C] =
+    new Eq[A :+: C] {
+      def eqv(x: A :+: C, y: A :+: C): Boolean =
+        (x, y) match {
+          case (Inl(xa), Inl(ya)) => eqa.eqv(xa, ya)
+          case (Inr(xc), Inr(yc)) => eqc.eqv(xc, yc)
+          case _ => false
+        }
+    }
+
+  implicit def eqFn1[A, B]: Eq[A => B] =
+    new Eq[A => B] {
+      def eqv(x: A => B, y: A => B): Boolean = x == y //FIXME
+    }
+
+  implicit val eqCountable0: Eq[Types.IsCountable0] = Eq.fromUniversalEquals
+  implicit val eqCountable1: Eq[Types.IsCountable1] = Eq.fromUniversalEquals
+  implicit val eqCountable256: Eq[Types.IsCountable256] = Eq.fromUniversalEquals
+  implicit val eqCountableZ: Eq[Types.IsCountableZ] = Eq.fromUniversalEquals
+
+  implicit val eqIndexable0: Eq[Types.IsIndexable0] = Eq.fromUniversalEquals
+  implicit val eqIndexable1: Eq[Types.IsIndexable1] = Eq.fromUniversalEquals
+  implicit val eqIndexable256: Eq[Types.IsIndexable256] = Eq.fromUniversalEquals
+  implicit val eqIndexableZ: Eq[Types.IsIndexableZ] = Eq.fromUniversalEquals
 }
 
-import Overloads._
+import EqInstances._
 
 object CNothingLaws extends CountableTests[Nothing]
 object CUnitLaws extends StrongIndexableTests[Unit]

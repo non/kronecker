@@ -4,15 +4,15 @@ lazy val kroneckerSettings = Seq(
   organization := "org.spire-math",
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
   homepage := Some(url("http://github.com/non/kronecker")),
-  scalaVersion := "2.12.12",
-  crossScalaVersions := Seq("2.11.12", "2.12.12"),
+  scalaVersion := "2.13.3",
+  crossScalaVersions := Seq("2.11.12", "2.12.12", "2.13.3"),
   scalacOptions ++=
     "-deprecation" ::
     "-encoding" :: "UTF-8" ::
     "-feature" ::
     "-unchecked" ::
     "-Xlint" ::
-    "-Ywarn-dead-code" ::
+    //"-Ywarn-dead-code" ::
     //"-Ywarn-numeric-widen" ::
     "-Ywarn-value-discard" ::
     "-Ywarn-unused:imports" ::

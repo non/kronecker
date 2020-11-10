@@ -1,6 +1,6 @@
 package kronecker
 
-//import spire.implicits._
+import cats.kernel.Eq
 import spire.math.Interval
 import spire.math.extras.interval.IntervalSeq
 
@@ -41,6 +41,9 @@ object IntervalTests {
   implicit lazy val ch: Countable[H] = CountableIntervalSeq(ish).translate(H(_))
   implicit lazy val ci: Countable[I] = CountableIntervalSeq(isi).translate(I(_))
   implicit lazy val cj: Countable[J] = CountableIntervalSeq(isj).translate(J(_))
+
+  implicit def univEq[T]: Eq[T] =
+    Eq.fromUniversalEquals[T]
 }
 
 import IntervalTests._

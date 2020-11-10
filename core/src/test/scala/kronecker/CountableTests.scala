@@ -25,16 +25,16 @@ object FixedCountableTests extends Properties("FixedCountableTests") {
 
   property("iterator") = {
     val c = Countable[Z]
-    c.iterator
+    c.iterator()
       .take(1000)
       .zipWithIndex
       .forall { case (n, i) => c.get(i) == Some(n) }
   }
 
-  property("iterator ~ toStream") =
-    forAll { (k: Short) =>
-      val c = Countable[Z]
-      val n = k & 0xffff
-      c.iterator.take(n).toList == c.stream.take(n).toList
-    }
+  // property("iterator ~ toStream") =
+  //   forAll { (k: Short) =>
+  //     val c = Countable[Z]
+  //     val n = k & 0xffff
+  //     c.iterator.take(n).toList == c.stream.take(n).toList
+  //   }
 }

@@ -28,7 +28,7 @@ class CFList[A](ev: Countable[A], sz: Z) extends Countable[List[A]] {
         bldr += ev.get(r).get
         curr = q
       }
-      bldr.result
+      bldr.result()
     })
 }
 
@@ -47,7 +47,7 @@ class CIList[A](ev: Countable[A]) extends Countable[List[A]] {
         bldr += ev.get(valIndex).get
         n = rest
       }
-      bldr.result
+      bldr.result()
     })
 
   // decode states (also used for encode)
