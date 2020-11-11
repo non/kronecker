@@ -98,8 +98,8 @@ trait WeakIndexableLaws[A] extends CountableLaws[A] { self: Properties =>
       .flatMap { i => ev.get(Z(i)).map(a => (i, a, ev.index(a))) }
       .filter { case (i, a, n) => i != n }
       .map { case (i, a, n) =>
-        val a2 = ev.get(n).get
-        s"i=$i (${repr(i)}) a=$a -> i2=$n (${repr(n)}) a2=$a2"
+        val o = ev.get(n)
+        s"i=$i (${repr(i)}) a=$a -> i2=$n (${repr(n)}) a2=$o"
       }
       .toList
     Prop(ns.isEmpty) :| s"$ns should be empty"
@@ -108,7 +108,13 @@ trait WeakIndexableLaws[A] extends CountableLaws[A] { self: Properties =>
 
   property("get(i).forall(index(_) == i)") =
     forAll { (i: Z) =>
-      ev.get(i).forall(a => ev.index(a) == i)
+      ev.get(i) match {
+        case None =>
+          Prop(true)
+        case Some(a) =>
+          val j = ev.index(a)
+          Prop(j == i) :| s"$j == $i"
+      }
     }
 }
 

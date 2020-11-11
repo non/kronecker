@@ -273,12 +273,12 @@ object Countable extends Countable1 {
     Indexable.SignedRange(Card(Z.one << 64), _.toLong)(Z(_))
 
   implicit def cfloat: Indexable[Float] =
-    cint.imap(intBitsToFloat)(floatToRawIntBits)
-    //IndexableFloat
+    //cint.imap(intBitsToFloat)(floatToRawIntBits)
+    IndexableFloat
 
   implicit def cdouble: Indexable[Double] =
-    clong.imap(longBitsToDouble)(doubleToRawLongBits)
-    //IndexableDouble
+    //clong.imap(longBitsToDouble)(doubleToRawLongBits)
+    IndexableDouble
 
   implicit val cbigInt: Indexable[BigInt] =
     cz.imap(_.toBigInt)(Z(_))
