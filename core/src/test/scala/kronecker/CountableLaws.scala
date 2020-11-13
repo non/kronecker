@@ -7,6 +7,7 @@ import org.scalacheck.{Arbitrary, Prop, Properties}
 import org.scalacheck.Prop.{forAllNoShrink => forAll}
 import scala.reflect.runtime.universe.TypeTag
 import shapeless._
+import spire.math.Rational
 
 // we need to avoid the long/double instances
 import cats.kernel.instances.boolean._
@@ -231,6 +232,7 @@ object CLongLaws extends StrongIndexableTests[Long]
 object CFloatLaws extends StrongIndexableTests[Float]
 object CDoubleLaws extends StrongIndexableTests[Double]
 object CZLaws extends StrongIndexableTests[Z]
+object CRationalLaws extends StrongIndexableTests[Rational]
 object CStringLaws extends StrongIndexableTests[String]
 
 object COptionUnitLaws extends StrongIndexableTests[Option[Unit]]

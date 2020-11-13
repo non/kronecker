@@ -1,12 +1,10 @@
 package kronecker
 
-import java.lang.Double.{doubleToRawLongBits, longBitsToDouble}
-import java.lang.Float.{floatToRawIntBits, intBitsToFloat}
 import kronecker.instances._
 import scala.collection.mutable
 import scala.reflect.ClassTag
 import shapeless._
-import spire.math.Searching
+import spire.math.{Rational, Searching}
 
 /**
  * Countable[A] represents an ordering of every possible A value.
@@ -339,6 +337,10 @@ object Countable extends Countable1 {
   // String
   implicit val nstring: Indexable[String] =
     Indexable[List[Char]].imap(_.mkString)(_.toList)
+
+  // Rational
+  implicit def nrational: Indexable[Rational] =
+    IndexableRational
 }
 
 abstract class Countable1 extends Countable0 {

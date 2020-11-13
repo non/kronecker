@@ -2,6 +2,7 @@ package kronecker
 
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalacheck.Arbitrary.arbitrary
+import spire.math.{Rational, SafeLong}
 
 object Testing {
 
@@ -31,6 +32,17 @@ object Testing {
 
   implicit val arbitraryZ: Arbitrary[Z] =
     Arbitrary(genZ)
+
+  implicit val arbitraryRatinoal: Arbitrary[Rational] = {
+    val g = Gen.choose(1L, Long.MaxValue).map(SafeLong(_))
+    Arbitrary(for {
+      s <- Gen.frequency(15 -> 1L, 14 -> -1L, 1 -> 0L)
+      nx <- g
+      ny <- g
+      dx <- g
+      dy <- g
+    } yield Rational(nx * ny, dx * dy) * s)
+  }
 
   implicit val arbitraryCard: Arbitrary[Card] =
     Arbitrary(genCard(5))
