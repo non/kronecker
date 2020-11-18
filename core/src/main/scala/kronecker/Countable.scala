@@ -4,7 +4,7 @@ import kronecker.instances._
 import scala.collection.mutable
 import scala.reflect.ClassTag
 import shapeless._
-import spire.math.{Rational, Searching}
+import spire.math.{Natural, Rational, Searching}
 
 /**
  * Countable[A] represents an ordering of every possible A value.
@@ -337,6 +337,14 @@ object Countable extends Countable1 {
   // String
   implicit val nstring: Indexable[String] =
     Indexable[List[Char]].imap(_.mkString)(_.toList)
+
+  // Natural
+  implicit val nnatural: Indexable[Natural] =
+    new Indexable[Natural] {
+      def cardinality: Card = Card.infinite
+      def get(index: Z): Option[Natural] = Some(Natural(index.toBigInt))
+      def index(n: Natural): Z = Z(n.toBigInt)
+    }
 
   // Rational
   implicit def nrational: Indexable[Rational] =

@@ -4,6 +4,13 @@ package instances
 import scala.annotation.tailrec
 
 object CList {
+
+  /**
+   * Build Countable[List[A]] using the appropriate strategy.
+   *
+   * See CFList for how we handle finite A types, and CIList for
+   * infinite A types.
+   */
   def apply[A](ev: Countable[A]): Countable[List[A]] =
     ev.cardinality.value match {
       case Some(sz) if sz.isZero => Countable.singleton(Nil)
@@ -12,66 +19,227 @@ object CList {
     }
 }
 
-// this only works if the A type is finite. A types that are infinite
-// require a different strategy than the lexicographic order (since
-// you can never finish enumerating the length=1 lists, you need to
-// diagonalize between enumerating lists of various lengths).
+/**
+ * Countable[List[A]] for finite A types.
+ *
+ * We encode these lists element-by-element in base-c digits, where c
+ * is the cardinality of A, offset by 1 (the first element is always
+ * the empty list). This ends up being equivalent to using
+ * lexicographic order to generate the lists.
+ *
+ * For example, for List[Boolean] we have:
+ *
+ *    0: List()
+ *    1: List(false)
+ *    2: List(true)
+ *    3: List(false, false)
+ *    4: List(true, false)
+ *    5: List(false, true)
+ *    6: List(true, true)
+ *    7: List(false, false, false)
+ *    8: List(true, false, false)
+ *    9: List(false, true, false)
+ *   10: List(true, true, false)
+ *
+ * This strategy only works if A is finite, since for an infinite type
+ * you won't ever finish enumerating the lists of length one.
+ *
+ * (This method assumes the cardinality of A is >= 1. If the
+ * cardinality is zero, only the singleton list can be generated.)
+ */
 class CFList[A](ev: Countable[A], sz: Z) extends Countable[List[A]] {
+
   def cardinality: Card =
     Card.infinite
-  def get(index: Z): Option[List[A]] =
-    Some({
-      val bldr = List.newBuilder[A]
-      var curr = index
-      while (!curr.isZero) {
-        val (q, r) = (curr - 1) /% sz
-        bldr += ev.get(r).get
-        curr = q
-      }
-      bldr.result()
-    })
+
+  def get(index: Z): Option[List[A]] = {
+    val bldr = List.newBuilder[A]
+    var curr = index
+    while (!curr.isZero) {
+      val (q, r) = (curr - 1) /% sz
+      bldr += ev.get(r).get
+      curr = q
+    }
+    Some(bldr.result())
+  }
 }
 
+/**
+ * Countable[List[A]] for infinite A types.
+ *
+ * For an infinite type Countable[A] implies a bijection with the
+ * natural numbers, so we can explain how this instance works in terms
+ * of natural numbers.
+ *
+ * The first element in the enumeration is the empty list (as in
+ * CFList). For non-zero indices, we split the index into hexadecimal
+ * (base-16) "list digits" to be processed, starting with the least
+ * significant digit. (Hexadecimal digits are prefixed with 0x.)
+ *
+ * We need a way of deciding how many elements are in our list, so we
+ * reserve 0x0 as a delimiter between separate elements' indices.
+ *
+ * Since we've reserved 0x0, we have 15 possible values to use to
+ * encode each element's index (0x1 through 0xf), meaning these
+ * indices are expressed in pentadecimal (base-15), which we will
+ * prefix with 0p. We also need to translate our values (1-15) into
+ * the appropriate pentadecimal range (0-14), which we do by treating
+ * 0xf as 0p0, leaving other digits unchanged (so 0x1 is 0p1, 0x9 is
+ * 0p9, and so on).x
+ *
+ * Broadly-speaking, you can look at the hex representation of the
+ * input and visually parse how to split things:
+ *
+ *     0x3e0f9013 -> 0x3e / 0xf9 / 0x13 -> 0p3e / 0p09 / 0p13
+ *
+ * However, there is a problem. 0p09 is equivalent to 0p9, but this
+ * would mean that we have two ways of representing the same list
+ * element. This would break our bijection, since we are required to
+ * have exactly one way to represent every possible list.
+ *
+ * To fix this, we treat a leading 0p0 digit as though it came after a
+ * 0p1 digit (we call this "carrying"). This means that 0xf9 would be
+ * treated as 0p109 instead of 0p09, which fixes the problem with
+ * leading 0xf, but creates a problem with leading 0x1f, since 0x1f9
+ * would _also_ be interpreted as 0p109. To handle this, we will
+ * continue carrying across any 0p1 digits we see after 0p0. This
+ * means 0x1f9 is treated as 0p1109, 0x11f9 is treated as 0p11109, and
+ * so on.
+ *
+ * The only other detail of carrying is that when dealing with the
+ * "last" element index (i.e. the largest significant digits of the
+ * hexadecimal index), we have a special treatment 0xf, 0x1f, 0x11f,
+ * and so on. In those cases, we ignore the carried 1 digit. This is
+ * needed because of the fact that we need to treat 0xf0... as zero,
+ * since 0x0... is equivalent to 0x..., i.e. leading zeros are lost.
+ *
+ * The order of the list is the order we parse the element indices
+ * in: least significant digits first.
+ *
+ * Here are some worked examples:
+ *
+ *      INDEX   HEX-INDEX      PENTA-ELEMS  RESULT
+ *          0         0x0                .  Nil
+ *          1         0x1              0p1  List(1)
+ *         14         0xe              0pe  List(14)
+ *         15         0xf              0p0  List(0)
+ *         16        0x10          0p1,0p0  List(0, 1)
+ *         17        0x11             0p11  List(16)
+ *         31        0x1f             0p10  List(15)
+ *         32        0x20          0p2,0p0  List(0, 2)
+ *        255        0xff            0p100  List(225)
+ *        256       0x100      0p1,0p0,0p0  List(0, 0, 1)
+ *        257       0x101          0p1,0p1  List(1, 1)
+ *        510       0x1fe           0p110e  List(3614)
+ *        511       0x1ff           0p1100  List(3600)
+ *        512       0x200      0p2,0p0,0p0  List(0, 0, 2)
+ *        513       0x201          0p2,0p1  List(1, 2)
+ *     130821     0x1ff05       0p1100,0p5  List(3600,5)
+ *     395016     0x60708      0p6,0p7,0p8  List(8, 7, 6)
+ *    1122053    0x111f05      0p11110,0p5  List(5, 3615)
+ * 1041207315  0x3e0f9013  0p3e,0p109,0p13  List(18, 234, 59)
+ *
+ * (Use Countable[List[Natural]] to see this in action.)
+ */
 class CIList[A](ev: Countable[A]) extends Countable[List[A]] {
-  val k = 4
-  val mask = (1 << k) - 1
+
+  protected[this] final val k = 4
+  protected[this] final val mask = 0xf
 
   val cardinality: Card = Card.infinite
 
-  def get(index: Z): Option[List[A]] =
-    Some({
-      val bldr = List.newBuilder[A]
-      var n = index
-      while (!n.isZero) {
-        val (valIndex, rest) = decode(n, mask, k)
-        bldr += ev.get(valIndex).get
-        n = rest
-      }
-      bldr.result()
-    })
+  /**
+   * Get a list given its index.
+   *
+   * Since get(0) returns an empty list, we repeatedly extract
+   * elements out of the given `index` until it is zero.
+   */
+  def get(index: Z): Option[List[A]] = {
+    val bldr = List.newBuilder[A]
+    var n = index
+    while (!n.isZero) {
+      val (valIndex, rest) = decode(n)
+      bldr += ev.get(valIndex).get
+      n = rest
+    }
+    Some(bldr.result())
+  }
 
-  // decode states (also used for encode)
-  final val A = 1 // on m goto B, else goto C
-  final val B = 2 // on 1 stay in B, on m goto D, else goto C (semi-carry)
-  final val C = 3 // on m goto D, else stay in C
-  final val D = 4 // on m or 1 stay in D, else goto C (carry)
+  /*
+   * A-D are encode/decode states:
+   *
+   * encode transitions occur on m, 1, or x (wildcard).
+   * all states other than A are possible end states.
+   *
+   *                   1
+   *                  ┏━┓
+   *                  ▼ ┃
+   *          m  ┏━━━━━━┻━━━━━┓ m
+   *      ┏━━━━━▶┃B.semi-carry┣━━━┓
+   *      ┃      ┗━┳━━━━━━━━━━┛   ┃     m,1
+   *      ┃        ┃              ▼    ┏━━┓
+   *   ┏━━┻━━━━┓   ┃ x       x  ┏━━━━━━┻┓ ┃
+   * ━▶┃A.start┃   ┗━━┓   ┏━━━━━┫D.carry┃ ┃
+   *   ┗━━┳━━━━┛      ┃   ┃     ┗━━━━━━━┛ ┃
+   *      ┃           ▼   ▼       ▲    ▲  ┃
+   *      ┃ 1,x  ┏━━━━━━━━━━┓  m  ┃    ┗━━┛
+   *      ┗━━━━━▶┃C.continue┣━━━━━┛
+   *             ┗━━━━━━┳━━━┛
+   *                  ▲ ┃1,x
+   *                  ┗━┛
+   *
+   * (the decode diagram is the same, except 0 replaces m.)
+   */
+  final val A = 1
+  final val B = 2
+  final val C = 3
+  final val D = 4
 
-  def decode(n: Z, m: Int, k: Int): (Z, Z) = {
+  /**
+   * Decode a particular element out of the list's encoded index.
+   *
+   * This returns the element's index followed by the index of the
+   * rest of the list.
+   *
+   * The input (`n`) is expected to be non-zero (since the list at
+   * index zero has no elements, all non-zero list indices have at
+   * least one element).
+   */
+  def decode(n: Z): (Z, Z) = {
+
+    // loop through the blocks reading this element index. a zero
+    // block means we're done with this element.
+    //
+    // curr is the current index being parsed and acc is the
+    // accumulated element index. mult is the multiplier used for the
+    // currently parsed digit, and state tracks out internal state
+    // machine (A-D) which handles carrying.
+    //
+    //     A. start: on m goto B, else goto C
+    //     B. semi-carry: on 1 stay in B, on m goto D, else goto C
+    //     C. continue: on m goto D, else stay in C
+    //     D. carry: on m or 1 stay in D, else goto C
+    //
+    // the only difference between states B and D is that on the very
+    // last element to decode (i.e. the most signficiant digits of the
+    // input), D will include a carried 1 digit whereas B will not. on
+    // elements that aren't the last element both B and D will include
+    // a carried 1 leading digit.
     @tailrec def loop(curr: Z, acc: Z, mult: Z, state: Int): (Z, Z) = {
-      val q = curr >> k
-      val r = (curr & m).toInt
-      val isLast = q.isZero
-      val isEnd = r == 0
+      val q = curr >> k           // the unread parts of the index
+      val r = (curr & mask).toInt // the digit to read
+      val isLast = q.isZero       // is this the last element of the list?
+      val isEnd = r == 0          // are we done reading the element?
 
       if (isEnd) {
         (if (state == B || state == D) acc + mult else acc, q)
       } else {
         val (acc2, st2) =
-          if (r == m) (acc, if (state == A) B else D)
+          if (r == mask) (acc, if (state == A) B else D)
           else if (r == 1) (acc + mult, if (state == B) B else if (state == D) D else C)
           else (acc + (r * mult), C)
 
-        val mult2 = mult * m
+        val mult2 = mult * mask
 
         if (isLast) {
           (if (st2 == D) acc2 + mult2 else acc2, Z.zero)
@@ -84,6 +252,11 @@ class CIList[A](ev: Countable[A]) extends Countable[List[A]] {
   }
 }
 
+/**
+ * Build Indexable[List[A]] using the appropriate strategy.
+ *
+ * Like CList, this depends on the cardinality of A.
+ */
 object NList {
   def apply[A](ev: Indexable[A]): Indexable[List[A]] =
     ev.cardinality.value match {
@@ -93,6 +266,13 @@ object NList {
     }
 }
 
+/**
+ * Indexable[List[A]] for finite A types.
+ *
+ * NFList is the complement to CFList when A is also indexable. See
+ * CFList for more information about the mapping between indices and
+ * values.
+ */
 class NFList[A](ev: Indexable[A], sz: Z) extends CFList(ev, sz) with Indexable[List[A]] {
   def index(lst: List[A]): Z = {
     def loop(as: List[A], acc: Z, mult: Z): Z =
@@ -107,8 +287,16 @@ class NFList[A](ev: Indexable[A], sz: Z) extends CFList(ev, sz) with Indexable[L
   }
 }
 
+/**
+ * Indexable[List[A]] for infinite A types.
+ *
+ * NIList is the complement to CIList when A is also indexable. See
+ * CIList for more information about the mapping between indices and
+ * values.
+ */
 class NIList[A](ev: Indexable[A]) extends CIList(ev) with Indexable[List[A]] {
-  val zmask = Z(mask)
+
+  private[this] val zmask = Z(mask)
 
   def index(lst: List[A]): Z = {
     @tailrec def loop(index: Z, shift: Int, as: List[A]): Z =
@@ -130,11 +318,19 @@ class NIList[A](ev: Indexable[A]) extends CIList(ev) with Indexable[List[A]] {
     // the mask, since actual zeros are used to signal the end of a
     // particular element (value-index).
     //
-    // state transitions mirror those from decode: D means we will
-    // carry no matter what, B means we'll only carry if we're not on
-    // the final element, and C means we won't carry. (it should not
-    // be possible to end up in state A when we're done with this
-    // element.)
+    // state transitions mirror those from decode, substituting zero
+    // for m:
+    //
+    //   A: on 0 goto B, else goto C
+    //   B: on 1 stay in B, on 0 goto D, else goto C
+    //   C: on 0 goto D, else stay in C
+    //   D: on 0 or 1 stay in D, else goto C
+    //
+    // D means we will carry no matter what, B means we'll only carry
+    // if we're not on the final element, and C means we won't carry.
+    // (it should not be possible to end up in state A when we're done
+    // with this element.)
+
     @tailrec def loop(curr: Z, acc: Z, shift: Int, state: Int): (Z, Int) = {
       val (q, r) = curr /% zmask
       val (digit, st) =
@@ -168,122 +364,3 @@ class NIList[A](ev: Indexable[A]) extends CIList(ev) with Indexable[List[A]] {
     }
   }
 }
-
-// final digit only
-//
-// do not carry ^3, ^13, ^113, etc.
-// do carry ^33, ^133, ^311, ^312, ^313, ^333, ^1333, etc.
-//
-// e.g.
-//    1 =     1 =  1
-//    2 =     2 =  2
-//    3 =     0 =  0
-//   11 =    11 =  4
-//   12 =    12 =  5
-//   13 =    10 =  3
-//   21 =    21 =  7
-//   22 =    22 =  8
-//   23 =    20 =  6
-//   31 =   101 = 10
-//   32 =   102 = 11
-//   33 =   100 =  9
-//  111 =   111 = 13
-//  112 =   112 = 14
-//  113 =   110 = 12
-//  121 =   121 = 16
-//  122 =   122 = 17
-//  123 =   120 = 15
-//  131 =  1101 = 37
-//  132 =  1102 = 38
-//  133 =  1100 = 36
-//  211 =   211 = 22
-//  212 =   212 = 23
-//  213 =   210 = 21
-//  221 =   221 = 25
-//  222 =   222 = 26
-//  223 =   220 = 24
-//  231 =   201 = 19
-//  232 =   202 = 20
-//  233 =   200 = 18
-//  311 =  1011 = 31
-//  312 =  1012 = 32
-//  313 =  1010 = 30
-//  321 =  1021 = 34
-//  322 =  1022 = 35
-//  323 =  1020 = 33
-//  331 =  1001 = 28
-//  332 =  1002 = 29
-//  333 =  1000 = 27
-// 1111 =  1111 = 40
-// 1112 =  1112 = 41
-// 1113 =  1110 = 39
-// 1121 =  1121 = 43
-// 1122 =  1122 = 44
-// 1123 =  1120 = 42
-// 1131 = 11101 = 118
-// 1132 = 11102 = 119
-// 1133 = 11100 = 117
-// 1211 =  1211 = 49
-// 1212 =  1212 = 50
-// 1213 =  1210 = 48
-// 1221 =  1221 = 52
-// 1222 =  1222 = 53
-// 1223 =  1220 = 51
-// 1231 =  1201 = 46
-// 1232 =  1202 = 47
-// 1233 =  1200 = 45
-// 1311 = 11011 = 112
-// 1312 = 11012 = 113
-// 1313 = 11010
-
-
-// example codings
-//
-//    0 = ,       = empty list * no carry
-//   01 = 1,      = List(1)
-//   02 = 2,      = List(2)
-//   03 = 0,      = List(0)
-//  010 = 0,1,    = List(0, 1)
-//  011 = 11,     = List(4)
-//  012 = 12,     = List(5)
-//  013 = 10,     = List(3) * no carry
-//  020 = 0,2,    = List(0, 2)
-//  021 = 21,     = List(7)
-//  022 = 22,     = List(8)
-//  023 = 20,     = List(6)
-//  030 = 0,0,   = List(0, 0)
-//  031 = 101,    = List(10)
-//  032 = 102,    = List(11)
-//  033 = 100,    = List(9)
-// 0100 = 0,0,1,  = List(0, 0, 1)
-// 0101 = 1,1,    = List(1, 1)
-// 0102 = 2,1,    = List(2, 1)
-// 0103 = 10,1,   = List(3, 1)
-// 0110 = 0,11,   = List(0, 4)
-// 0111 = 111,    = List(13)
-// 0112 = 112,    = List(14)
-// 0113 = 110,    = List(12) * no carry
-// 0120 = 0,12    = List(0, 5)
-// 0121 = 121,    = List(16)
-// 0122 = 122,    = List(17)
-// 0123 = 120,    = List(15)
-// 0130 = 0,110   = List(0, 12)
-// 0131 = 1101,   = List(37)
-// 0132 = 1102,   = List(38)
-// 0133 = 1100,   = List(36)
-// 0200 = 0,0,2,  = List(0, 0, 2)
-// 0201 = 1,2,    = List(1, 2)
-// 0202 = 2,2,    = List(2, 2)
-// 0203 = 10,2,   = List(3, 2)
-// 0210 = 0,21,   = List(0, 7)
-// 0211 = 211,    = List(22)
-// 0212 = 212,    = List(23)
-// 0213 = 210,    = List(21)
-// 0220 = 0,22,   = List(0, 8)
-// 0221 = 221,    = List(25)
-// 0222 = 222,    = List(26)
-// 0223 = 220,    = List(27)
-// 0230 = 0,20,   = List(0, 6)
-// 0231 = 0,201,  = List(0, 19)
-// 0232 = 0,202,  = List(0, 20)
-// 0233 = 0,200,  = List(0, 18)

@@ -3,6 +3,9 @@ package instances
 
 import spire.math.Rational
 
+/*
+ */
+
 object IndexableRational extends Indexable[Rational] {
 
   def cardinality: Card =

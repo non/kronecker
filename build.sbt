@@ -15,7 +15,7 @@ lazy val kroneckerSettings = Seq(
     //"-Ywarn-dead-code" ::
     //"-Ywarn-numeric-widen" ::
     "-Ywarn-value-discard" ::
-    "-Ywarn-unused:imports" ::
+    //"-Ywarn-unused:imports" ::
     Nil,
   libraryDependencies ++=
     "org.scala-lang" % "scala-reflect" % scalaVersion.value ::
