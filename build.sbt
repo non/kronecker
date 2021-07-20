@@ -1,21 +1,18 @@
-import ReleaseTransformations._
+import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 lazy val kroneckerSettings = Seq(
   organization := "org.spire-math",
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
   homepage := Some(url("http://github.com/non/kronecker")),
-  scalaVersion := "2.13.3",
-  crossScalaVersions := Seq("2.11.12", "2.12.12", "2.13.3"),
+  scalaVersion := "2.13.4",
+  crossScalaVersions := Seq("2.12.12", "2.13.3"),
   scalacOptions ++=
     "-deprecation" ::
     "-encoding" :: "UTF-8" ::
     "-feature" ::
     "-unchecked" ::
     "-Xlint" ::
-    //"-Ywarn-dead-code" ::
-    //"-Ywarn-numeric-widen" ::
     "-Ywarn-value-discard" ::
-    //"-Ywarn-unused:imports" ::
     Nil,
   libraryDependencies ++=
     "org.scala-lang" % "scala-reflect" % scalaVersion.value ::
@@ -23,41 +20,8 @@ lazy val kroneckerSettings = Seq(
     "org.typelevel" %% "spire-extras" % "0.17.0" ::
     "com.chuusai" %% "shapeless" % "2.3.3" ::
     "org.scalacheck" %% "scalacheck" % "1.15.0" % "test" ::
-    Nil,
-  //scalaJSStage in Global := FastOptStage, //FIXME
-  releaseCrossBuild := true,
-  releasePublishArtifactsAction := PgpKeys.publishSigned.value,
-  publishMavenStyle := true,
-  publishArtifact in Test := false,
-  pomIncludeRepository := Function.const(false),
-  publishTo := Some(if (isSnapshot.value) Opts.resolver.sonatypeSnapshots else Opts.resolver.sonatypeStaging),
-  pomExtra := (
-    <scm>
-      <url>git@github.com:non/kronecker.git</url>
-      <connection>scm:git:git@github.com:non/kronecker.git</connection>
-    </scm>
-    <developers>
-      <developer>
-        <id>non</id>
-        <name>Erik Osheim</name>
-        <url>http://github.com/non/</url>
-      </developer>
-    </developers>
-  ),
-
-  releaseProcess := Seq[ReleaseStep](
-    checkSnapshotDependencies,
-    inquireVersions,
-    runClean,
-    runTest,
-    setReleaseVersion,
-    commitReleaseVersion,
-    tagRelease,
-    publishArtifacts,
-    setNextVersion,
-    commitNextVersion,
-    releaseStepCommand("sonatypeReleaseAll"),
-    pushChanges))
+    "org.typelevel" %% "claimant" % "0.1.3" % "test" ::
+    Nil)
 
 lazy val noPublish = Seq(
   publish := {},
@@ -71,7 +35,7 @@ lazy val root = project
   .settings(kroneckerSettings: _*)
   .settings(noPublish: _*)
 
-lazy val core = crossProject
+lazy val core = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .in(file("core"))
   .settings(name := "kronecker-core")
@@ -79,12 +43,12 @@ lazy val core = crossProject
 lazy val coreJVM = core.jvm
 lazy val coreJS = core.js
 
-lazy val refined = crossProject
+lazy val refined = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .in(file("refined"))
   .dependsOn(core)
   .settings(name := "kronecker-refined")
   .settings(kroneckerSettings: _*)
-  .settings(libraryDependencies += "eu.timepit" %% "refined" % "0.9.1")
+  .settings(libraryDependencies += "eu.timepit" %% "refined" % "0.9.19")
 lazy val refinedJVM = refined.jvm
 lazy val refinedJS = refined.js
