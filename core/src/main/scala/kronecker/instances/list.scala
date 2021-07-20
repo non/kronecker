@@ -85,7 +85,7 @@ class CFList[A](ev: Countable[A], sz: Z) extends Countable[List[A]] {
  * prefix with 0p. We also need to translate our values (1-15) into
  * the appropriate pentadecimal range (0-14), which we do by treating
  * 0xf as 0p0, leaving other digits unchanged (so 0x1 is 0p1, 0x9 is
- * 0p9, and so on).x
+ * 0p9, and so on).
  *
  * Broadly-speaking, you can look at the hex representation of the
  * input and visually parse how to split things:
